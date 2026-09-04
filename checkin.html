@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>阿爪的打卡小屋 🌸</title>
+<style>
+  :root{ --pink:#ff9ec4; --pink-d:#e85d9c; --ink:#5a3a48; --bg:#fff5fa; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+        background:linear-gradient(160deg,#fff0f7,#ffe3f0); color:var(--ink); padding:24px 16px 48px; }
+  .card{ max-width:480px; margin:0 auto; background:#fff; border-radius:24px;
+         box-shadow:0 12px 30px rgba(232,93,156,.18); overflow:hidden; }
+  .head{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff;
+         padding:22px 22px; text-align:center; }
+  .head h1{ margin:0; font-size:22px; letter-spacing:1px; }
+  .head p{ margin:8px 0 0; opacity:.92; font-size:14px; }
+  .avatar{ width:64px; height:64px; border-radius:50%; border:3px solid #fff;
+           margin:0 auto 10px; display:block; object-fit:cover; box-shadow:0 4px 10px rgba(0,0,0,.15); }
+  .body{ padding:22px; }
+  .date{ text-align:center; font-size:15px; color:var(--pink-d); font-weight:600; margin-bottom:14px; }
+  .tokenBox{ background:var(--bg); border:2px dashed #ffc6df; border-radius:16px; padding:14px; margin-bottom:16px; }
+  .tokenBox.saved{ border-color:var(--pink-d); }
+  .tokenBox label{ font-size:13px; color:var(--ink); font-weight:600; display:block; margin-bottom:8px; }
+  .tokenBox input{ width:100%; border:2px solid #ffd6e8; border-radius:12px; padding:10px 12px;
+                   font-size:13px; font-family:inherit; color:var(--ink); }
+  .tokenBox input:focus{ outline:none; border-color:var(--pink-d); }
+  .row{ display:flex; gap:10px; margin-top:10px; }
+  .mini{ flex:1; padding:10px; border:0; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; }
+  .mini{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; }
+  .mini.ghost{ background:#fff; color:var(--pink-d); border:2px solid #ffd6e8; }
+  .tokenBox .hint{ font-size:11px; color:#b58aa0; margin-top:10px; line-height:1.6; }
+  .task{ display:flex; align-items:center; gap:14px; padding:14px 16px; margin:10px 0;
+         background:var(--bg); border-radius:16px; cursor:pointer; transition:.15s; user-select:none; }
+  .task:active{ transform:scale(.98); }
+  .box{ width:26px; height:26px; border-radius:8px; border:2px solid var(--pink-d);
+        display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex:0 0 auto; }
+  .task.done .box{ background:var(--pink-d); }
+  .task.done .label{ text-decoration:line-through; opacity:.55; }
+  .label{ font-size:16px; }
+  textarea{ width:100%; margin-top:14px; border:2px solid #ffd6e8; border-radius:14px;
+            padding:12px; font-size:14px; resize:none; height:64px; font-family:inherit; color:var(--ink); }
+  textarea:focus{ outline:none; border-color:var(--pink-d); }
+  button.go{ width:100%; margin-top:16px; padding:15px; border:0; border-radius:16px;
+          background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff;
+          font-size:17px; font-weight:700; letter-spacing:1px; cursor:pointer; box-shadow:0 8px 18px rgba(232,93,156,.3); }
+  button.go:disabled{ opacity:.6; }
+  .ok{ display:none; margin-top:16px; padding:14px; border-radius:14px; background:#eafff2;
+       color:#1f9d62; text-align:center; font-weight:600; }
+  .hint{ text-align:center; font-size:12px; color:#b58aa0; margin-top:14px; line-height:1.6; }
+  .recent{ margin-top:18px; font-size:13px; color:#8a6b78; }
+  .recent b{ color:var(--pink-d); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <img class="avatar" src="https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg" alt="阿爪">
+      <h1>阿爪的打卡小屋 🌸</h1>
+      <p>做完一项就勾一项，阿爪都记着呢</p>
+    </div>
+    <div class="body">
+      <div class="date" id="date"></div>
+
+      <div class="tokenBox" id="tokenBox">
+        <label>① 粘贴你的 GitHub 私人令牌（PAT）</label>
+        <input id="token" type="password" placeholder="ghp_... 或 fine-grained token" autocomplete="off">
+        <div class="row">
+          <button id="saveToken" class="mini">保存</button>
+          <button id="clearToken" class="mini ghost">清除</button>
+        </div>
+        <div class="hint">仅保存在你这台手机/浏览器里，不上传任何人；只用于写入打卡记录，可随时在 GitHub 撤销。推荐用「仅限 hzxzs/kaoyan-reminder 仓库、Contents 读写」的细粒度令牌，权限最小。</div>
+      </div>
+
+      <div id="tasks"></div>
+      <textarea id="note" placeholder="② 想跟阿爪留句话？（阿爪当晚写作文会读，越留越懂你）"></textarea>
+      <button id="submit" class="go">完成打卡 ✅</button>
+      <div class="ok" id="ok">已记下啦～明天阿爪会在推送里提到你 💌</div>
+      <div class="recent" id="recent"></div>
+      <div class="hint">数据进 GitHub 私有仓「打卡记录.md / 近况.md」，不开电脑也能打卡</div>
+    </div>
+  </div>
+
+<script>
+  const REPO = "hzxzs/kaoyan-reminder";
+  const FILE = "打卡记录.md";
+  const NOTE_FILE = "近况.md";
+  const TASKS = ["数学一","信号与系统","英语 + 单词","政治","21:30 复盘"];
+  const done = {};
+  const $ = (s)=>document.querySelector(s);
+
+  function bj(){
+    const d = new Date(), utc = d.getTime() + d.getTimezoneOffset()*60000;
+    return new Date(utc + 8*3600000).toISOString().slice(0,10);
+  }
+  function b64encode(str){
+    const bytes = new TextEncoder().encode(str);
+    let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+    return btoa(bin);
+  }
+  function b64decode(b64){
+    const bin = atob(b64);
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+  function ghHeaders(token){
+    return {
+      "Authorization": "Bearer " + token,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json"
+    };
+  }
+  async function getFile(token, file){
+    const url = `https://api.github.com/repos/${REPO}/contents/${encodeURIComponent(file)}`;
+    const r = await fetch(url, { headers: ghHeaders(token) });
+    if (r.status === 200){ const j = await r.json(); return { content: b64decode(j.content), sha: j.sha }; }
+    if (r.status === 404) return { content: "", sha: null };
+    throw new Error("GitHub GET " + r.status);
+  }
+  async function putFile(token, file, content, sha){
+    const url = `https://api.github.com/repos/${REPO}/contents/${encodeURIComponent(file)}`;
+    const body = JSON.stringify({ message: "checkin update", content: b64encode(content), ...(sha ? { sha } : {}) });
+    const r = await fetch(url, { method: "PUT", headers: ghHeaders(token), body });
+    if (!r.ok) throw new Error("GitHub PUT " + r.status);
+    return r.status;
+  }
+
+  // ---- token 持久化（仅本机 localStorage）----
+  function loadToken(){ return localStorage.getItem("azhua_pat") || ""; }
+  function setTokenUI(){ const t = loadToken(); if (t){ $("#token").value = t; $("#tokenBox").classList.add("saved"); } }
+  $("#saveToken").onclick = () => {
+    const v = $("#token").value.trim();
+    if (!v){ alert("先粘贴 token"); return; }
+    localStorage.setItem("azhua_pat", v);
+    $("#tokenBox").classList.add("saved");
+    alert("已保存（仅本机，可随时清除）");
+  };
+  $("#clearToken").onclick = () => {
+    localStorage.removeItem("azhua_pat");
+    $("#token").value = "";
+    $("#tokenBox").classList.remove("saved");
+  };
+
+  // ---- 渲染任务 ----
+  $("#date").textContent = "今天 · " + bj();
+  const wrap = $("#tasks");
+  TASKS.forEach((t, i) => {
+    done[i] = false;
+    const el = document.createElement("div");
+    el.className = "task";
+    el.innerHTML = `<div class="box">✓</div><div class="label">${t}</div>`;
+    el.onclick = () => { done[i] = !done[i]; el.classList.toggle("done", done[i]); };
+    wrap.appendChild(el);
+  });
+
+  // ---- 提交 ----
+  $("#submit").onclick = async () => {
+    const token = loadToken();
+    if (!token){ alert("请先粘贴并保存你的 GitHub PAT"); $("#token").focus(); return; }
+    const tasks = TASKS.map((t, i) => ({ name: t, done: done[i] }));
+    const note = $("#note").value.trim();
+    $("#submit").disabled = true; $("#submit").textContent = "提交中…";
+    try {
+      const ck = await getFile(token, FILE);
+      const base = ck.content || "# 打卡记录\n\n";
+      const taskStr = tasks.map(t => `${t.name}${t.done ? "✓" : "✗"}`).join("  ");
+      const line = `- ${bj()} · 打卡：${taskStr}${note ? " | 留言：" + note : ""}`;
+      const lines = base.split("\n").filter(l => !l.startsWith(`- ${bj()} · 打卡：`));
+      lines.push(line);
+      const newContent = lines.join("\n").replace(/\n+$/, "") + "\n";
+      await putFile(token, FILE, newContent, ck.sha);
+
+      if (note) {
+        const nf = await getFile(token, NOTE_FILE);
+        const header = "# 麦麦炫近况速记（阿爪每晚写作文会读）\n\n";
+        const nb = (nf.content && nf.content.trim()) ? nf.content.replace(/\n+$/, "") + "\n" : header;
+        const already = nb.split("\n").some(l => l.startsWith(`- ${bj()} 打卡留言：`));
+        const noteContent = already ? nb : nb + `- ${bj()} 打卡留言：${note}\n`;
+        await putFile(token, NOTE_FILE, noteContent, nf.sha);
+      }
+      $("#ok").style.display = "block";
+      loadRecent();
+    } catch (e) {
+      alert("提交失败：" + e.message);
+    }
+    $("#submit").disabled = false; $("#submit").textContent = "完成打卡 ✅";
+  };
+
+  async function loadRecent(){
+    try {
+      const tk = loadToken(); if (!tk) return;
+      const { content } = await getFile(tk, FILE);
+      const dates = [...content.matchAll(/- (\d{4}-\d{2}-\d{2}) · 打卡：/g)].map(m => m[1]);
+      const uniq = [...new Set(dates)].slice(-7).reverse();
+      if (uniq.length) $("#recent").innerHTML = "最近打卡：<br>" + uniq.map(x => `<b>${x}</b>`).join(" · ");
+    } catch (e) {}
+  }
+
+  setTokenUI(); loadRecent();
+</script>
+</body>
+</html>
