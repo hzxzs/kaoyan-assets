@@ -78,6 +78,8 @@
       <button id="submit" class="go">完成打卡 ✅</button>
       <div class="ok" id="ok">已记下啦～明天阿爪会在推送里提到你 💌</div>
       <div class="recent" id="recent"></div>
+      <button id="viewStats" class="go" style="background:linear-gradient(135deg,#9ecbff,#5aa9e8);margin-top:14px;">📊 查看我的打卡记录</button>
+      <div id="statsPanel" style="display:none;margin-top:14px;"></div>
       <div class="hint">数据进 GitHub 私有仓「打卡记录.md / 近况.md」，不开电脑也能打卡</div>
     </div>
   </div>
@@ -206,6 +208,58 @@
       if (uniq.length) $("#recent").innerHTML = "最近打卡：<br>" + uniq.map(x => `<b>${x}</b>`).join(" · ");
     } catch (e) {}
   }
+
+  // ---- 查看我的打卡记录（连续天数 + 最近7天日历 + 完成率）----
+  $("#viewStats").onclick = async () => {
+    const tk = loadToken();
+    if (!tk){ alert("先填并保存你的 GitHub PAT，才能查看哦"); return; }
+    const panel = $("#statsPanel");
+    panel.style.display = "block";
+    panel.innerHTML = "读取中…";
+    try {
+      const { content } = await getFile(tk, FILE);
+      const lines = content.split("\n").filter(l => /- (\d{4}-\d{2}-\d{2}) · 打卡：/.test(l));
+      const perDay = {};
+      let totalDone = 0, totalAll = 0;
+      lines.forEach(l => {
+        const m = l.match(/- (\d{4}-\d{2}-\d{2}) · 打卡：(.*)/);
+        if (!m) return;
+        const body = m[2];
+        const done = (body.split("✓").length - 1);
+        const total = done + (body.split("✗").length - 1);
+        perDay[m[1]] = { done, total };
+        totalDone += done; totalAll += total;
+      });
+      const dayBefore = (n) => {
+        const d = new Date(); d.setDate(d.getDate() - n);
+        const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+        return new Date(utc + 8 * 3600000).toISOString().slice(0, 10);
+      };
+      let streak = 0;
+      const start = perDay[dayBefore(0)] ? 0 : 1;
+      for (let i = start; i < 400; i++){ if (perDay[dayBefore(i)]) streak++; else break; }
+      const rate = totalAll ? Math.round(totalDone / totalAll * 100) : 0;
+      let cal = "";
+      for (let i = 6; i >= 0; i--){
+        const ds = dayBefore(i);
+        const rec = perDay[ds];
+        const on = !!rec;
+        const r = rec ? Math.round(rec.done / Math.max(rec.total, 1) * 100) : 0;
+        const label = ds.slice(5);
+        cal += `<div style="flex:1;text-align:center;padding:8px 2px;border-radius:10px;font-size:11px;color:#5a3a48;background:${on ? 'linear-gradient(135deg,#ffd6e8,#ff9ec4);color:#fff' : '#fff0f7'};">
+          <div style="font-weight:700;">${label}</div><div>${on ? r + '%' : '—'}</div></div>`;
+      }
+      panel.innerHTML = `
+        <div style="background:#fff0f7;border-radius:16px;padding:16px;">
+          <div style="font-size:18px;font-weight:700;color:#e85d9c;text-align:center;">🔥 连续打卡 ${streak} 天</div>
+          <div style="text-align:center;color:#8a6b78;margin:6px 0 14px;">近7天总完成率 ${rate}%</div>
+          <div style="display:flex;gap:6px;">${cal}</div>
+          <div style="text-align:center;font-size:11px;color:#b58aa0;margin-top:12px;">数据来自 GitHub 私有仓打卡记录</div>
+        </div>`;
+    } catch (e) {
+      panel.innerHTML = "读取失败：" + e.message;
+    }
+  };
 
   setTokenUI(); loadRecent();
 </script>
