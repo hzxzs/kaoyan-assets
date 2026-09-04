@@ -19,12 +19,13 @@
            margin:0 auto 10px; display:block; object-fit:cover; box-shadow:0 4px 10px rgba(0,0,0,.15); }
   .body{ padding:22px; }
   .date{ text-align:center; font-size:15px; color:var(--pink-d); font-weight:600; margin-bottom:14px; }
-  .tokenBox{ background:var(--bg); border:2px dashed #ffc6df; border-radius:16px; padding:14px; margin-bottom:16px; }
-  .tokenBox.saved{ border-color:var(--pink-d); }
-  .tokenBox label{ font-size:13px; color:var(--ink); font-weight:600; display:block; margin-bottom:8px; }
-  .tokenBox input{ width:100%; border:2px solid #ffd6e8; border-radius:12px; padding:10px 12px;
-                   font-size:13px; font-family:inherit; color:var(--ink); }
-  .tokenBox input:focus{ outline:none; border-color:var(--pink-d); }
+  .tokenBox{ background:#fff0f7; border:2px solid var(--pink); border-radius:16px; padding:14px; margin-bottom:16px; box-shadow:0 4px 12px rgba(232,93,156,.14); }
+  .tokenBox.saved{ border-color:var(--pink-d); background:#eafff2; }
+  .tokenBox label{ font-size:14px; color:var(--pink-d); font-weight:700; display:block; margin-bottom:8px; }
+  .tokenBox input{ width:100%; border:2px solid var(--pink-d); border-radius:12px; padding:12px;
+                   font-size:14px; font-family:monospace; color:var(--ink); background:#fff;
+                   box-shadow:0 2px 8px rgba(232,93,156,.12); }
+  .tokenBox input:focus{ outline:none; border-color:var(--pink-d); box-shadow:0 0 0 3px rgba(232,93,156,.25); }
   .row{ display:flex; gap:10px; margin-top:10px; }
   .mini{ flex:1; padding:10px; border:0; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; }
   .mini{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; }
@@ -63,13 +64,13 @@
       <div class="date" id="date"></div>
 
       <div class="tokenBox" id="tokenBox">
-        <label>① 粘贴你的 GitHub 私人令牌（PAT）</label>
-        <input id="token" type="password" placeholder="ghp_... 或 fine-grained token" autocomplete="off">
+        <label>① 把你的 GitHub 令牌（PAT）粘贴到这里 👇</label>
+        <input id="token" type="text" placeholder="在这里粘贴：ghp_... 或 github_pat_..." autocomplete="off" spellcheck="false">
         <div class="row">
           <button id="saveToken" class="mini">保存</button>
           <button id="clearToken" class="mini ghost">清除</button>
         </div>
-        <div class="hint">仅保存在你这台手机/浏览器里，不上传任何人；只用于写入打卡记录，可随时在 GitHub 撤销。推荐用「仅限 hzxzs/kaoyan-reminder 仓库、Contents 读写」的细粒度令牌，权限最小。</div>
+        <div class="hint">仅保存在你这台手机/浏览器里，不上传任何人；只用于写入打卡记录，可随时在 GitHub 撤销。如果你是用阿爪给你的「专属链接」点进来的，这里已经自动填好了，直接去勾选即可。</div>
       </div>
 
       <div id="tasks"></div>
@@ -141,6 +142,15 @@
     $("#token").value = "";
     $("#tokenBox").classList.remove("saved");
   };
+
+  // ---- 支持 ?t= 专属链接预填（token 只在你点开的那条链接里，不进仓库源码）----
+  (function(){
+    try{
+      const u = new URL(location.href);
+      const t = u.searchParams.get("t");
+      if (t){ localStorage.setItem("azhua_pat", t); u.searchParams.delete("t"); history.replaceState(null, "", u.pathname + u.hash); }
+    }catch(e){}
+  })();
 
   // ---- 渲染任务 ----
   $("#date").textContent = "今天 · " + bj();
