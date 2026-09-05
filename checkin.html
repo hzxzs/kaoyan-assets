@@ -76,6 +76,8 @@
   .msg.her{ justify-content:flex-start; }
   .msg.her .bubble{ background:#fff0f7; color:var(--ink); border:1px solid #ffd6e8; }
   .msg .who{ font-size:11px; opacity:.7; margin-bottom:3px; }
+  .msgava{ width:36px; height:36px; border-radius:50%; flex:0 0 auto; object-fit:cover; align-self:flex-end; border:2px solid #fff; box-shadow:0 2px 6px rgba(232,93,156,.25); margin:0 2px; }
+  .msgava.me{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; }
   .empty{ text-align:center; color:#b58aa0; font-size:13px; padding:16px 10px; line-height:1.6; }
 
   .chatInputRow{ display:flex; gap:8px; margin-top:10px; }
@@ -156,6 +158,7 @@
   // 实时对话后端（可选）：填上你自己的后端地址 = 打字秒回；留空 = 走 GitHub 原生即时触发（需 PAT 有 Actions 权限）。
   const API_BASE = "https://1481652270-fwhnyun3h1.ap-guangzhou.tencentscf.com";
   const ACCESS_KEY = "azhua520";
+  const AVATAR = "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg?v=3";
   const done = {};
   const $ = (s)=>document.querySelector(s);
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
@@ -441,13 +444,18 @@
       const { content } = await getFile(tk, DIALOG_FILE);
       const items = parseDialog(content).slice(-12);
       if (!items.length){
-        box.innerHTML = '<div class="empty">咱俩还没聊过呢。<br>下面说点啥吧，我接着你～</div>';
+        box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>你来啦～今天过得怎么样？想聊点啥我都陪你 💬</div></div>`;
         return;
       }
       box.innerHTML = items.map(x => {
         const me = x.who === "麦麦炫";
+        const ava = me
+          ? `<div class="msgava me">我</div>`
+          : `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'">`;
         return `<div class="msg ${me ? "me" : "her"}">
+          ${me ? "" : ava}
           <div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
+          ${me ? ava : ""}
         </div>`;
       }).join("");
       box.scrollTop = box.scrollHeight;
