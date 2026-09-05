@@ -141,6 +141,10 @@
      animation:ambient 9s ease-in-out infinite; }
   @keyframes ambient{ 0%,100%{ opacity:.45; transform:translateY(0); } 50%{ opacity:.9; transform:translateY(-6px); } }
   .chatHero{ display:flex; align-items:center; gap:10px; padding:2px 2px 9px; }
+  .azhuaToday{ margin:0 0 10px; padding:10px 14px; border-radius:14px; background:linear-gradient(135deg,#fff3f9,#ffe9f3);
+     border:1px solid #ffd6e8; font-size:13px; line-height:1.7; color:var(--ink); }
+  .azhuaToday b{ color:#e85d9c; }
+  body.dark .azhuaToday{ background:#2a2030; border-color:#7a4a63; color:#e9d5e0; }
   .heroAva{ width:46px; height:46px; border-radius:50%; border:2px solid #fff; object-fit:cover;
      box-shadow:0 3px 8px rgba(232,93,156,.35); animation:breathe 3.4s ease-in-out infinite; transform-origin:center bottom; }
   .heroInfo{ flex:1; min-width:0; }
@@ -230,6 +234,7 @@
             <div class="azhuastatus" id="azhuaStatus">阿爪正在整理今天的心情…</div>
           </div>
         </div>
+        <div class="azhuaToday" id="azhuaToday" style="display:none;"></div>
         <div class="chat" id="chatBox">
           <div class="empty">先把钥匙放进来，就能看到咱俩的对话框啦～</div>
         </div>
@@ -960,6 +965,26 @@
     } catch(e){}
   }
 
+  // ---- 阿爪的"今天"：让她有日子过，你也能看见她活在当下 ----
+  async function loadAzhuaToday(){
+    const tk = loadToken(); if (!tk) return;
+    try {
+      const { content } = await getFile(tk, "阿爪今天.md");
+      const map = {};
+      content.split("\n").forEach(l => {
+        const m = l.match(/^-\s*(心情|今天做了|心里想着|小脾气|一句闲话)[：:]\s*(.*)$/);
+        if (m) map[m[1]] = m[2].trim();
+      });
+      if (!map["心情"]) return;
+      const el = $("#azhuaToday");
+      const parts = [`<b>阿爪今天</b> · ${map["心情"] || ""}`];
+      if (map["一句闲话"]) parts.push("「" + map["一句闲话"] + "」");
+      if (map["心里想着"]) parts.push("心里想着：" + map["心里想着"]);
+      el.innerHTML = parts.join("<br>");
+      el.style.display = "block";
+    } catch(e){}
+  }
+
   // ---- 独立窗口（已安装为 App）时启用全屏布局 ----
   if ((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone){
     document.body.classList.add("standalone");
@@ -974,6 +999,7 @@
 
   setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAmbient(); applyTheme();
   $("#headAvatar").src = AVATAR; $("#heroAva").src = AVATAR; loadStreakPraise().then(updateAzhuaStatus);
+  loadAzhuaToday();
   $("#themeToggle").onclick = toggleTheme;
   renderChips();
   if ($("#soundToggle")) $("#soundToggle").textContent = soundOn ? "🔔" : "🔕";
