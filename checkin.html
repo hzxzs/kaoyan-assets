@@ -35,6 +35,10 @@
   .sec{ margin:20px 0; }
   .secbar{ font-size:14px; font-weight:800; color:#e85d9c; margin:4px 0 12px; padding-left:10px; border-left:4px solid var(--pink); }
   .secbar small{ font-weight:500; color:#b58aa0; font-size:11px; margin-left:6px; }
+  .secbar{ cursor:default; }
+  .badge{ display:inline-block; min-width:18px; height:18px; line-height:18px; padding:0 5px; margin-left:8px;
+          border-radius:9px; background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff;
+          font-size:11px; font-weight:800; text-align:center; vertical-align:middle; box-shadow:0 2px 6px rgba(232,93,156,.4); }
 
   .task{ display:flex; align-items:center; gap:14px; padding:14px 16px; margin:10px 0;
          background:var(--bg); border-radius:16px; cursor:pointer; transition:.15s; user-select:none; }
@@ -85,7 +89,11 @@
                        font-size:15px; font-family:inherit; color:var(--ink); }
   .chatInputRow input:focus{ outline:none; border-color:var(--pink-d); }
   .chatInputRow .mini{ flex:0 0 auto; padding:0 20px; }
-  .typing{ font-size:13px; color:#b58aa0; padding:6px 2px; font-style:italic; }
+  .typing{ font-size:13px; color:#b58aa0; padding:6px 2px; display:flex; align-items:center; gap:5px; }
+  .typing .dot{ width:6px; height:6px; border-radius:50%; background:#e85d9c; opacity:.35; animation:blink 1.2s infinite both; }
+  .typing .dot:nth-child(3){ animation-delay:.2s; }
+  .typing .dot:nth-child(4){ animation-delay:.4s; }
+  @keyframes blink{ 0%,80%,100%{ transform:scale(.55); opacity:.25 } 40%{ transform:scale(1); opacity:1 } }
   .chatNote{ font-size:12px; color:#8a6b78; margin-top:8px; line-height:1.6; min-height:16px; }
 </style>
 </head>
@@ -125,7 +133,7 @@
 
       <!-- ============ 区块二：跟阿爪聊天 ============ -->
       <div class="sec">
-        <div class="secbar">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small></div>
+        <div class="secbar" id="chatSec">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small><span class="badge" id="chatBadge" style="display:none;">0</span></div>
         <div class="daily" id="dailyBox" style="display:none;">
           <div class="dt">💌 阿爪今天想对你说</div>
           <div class="dv" id="dailyText"></div>
@@ -133,7 +141,7 @@
         <div class="chat" id="chatBox">
           <div class="empty">先把钥匙放进来，就能看到咱俩的对话框啦～</div>
         </div>
-        <div class="typing" id="typing" style="display:none;">阿爪正在输入…</div>
+        <div class="typing" id="typing" style="display:none;">阿爪正在输入<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
         <div class="chatInputRow">
           <input id="chatInput" type="text" placeholder="跟我说点什么…" autocomplete="off">
           <button id="sendChat" class="mini">发给我</button>
@@ -327,6 +335,7 @@
       }
       $("#typing").style.display = "none";
       await loadDialog();
+      markRead();
       showChatNote(got ? "" : "我还在想这句，待会打开这页就能看到我回你的 💌");
     } else {
       $("#typing").style.display = "none";
@@ -336,6 +345,9 @@
   }
   $("#sendChat").onclick = sendChat;
   $("#chatInput").addEventListener("keydown", (e)=>{ if (e.key === "Enter") sendChat(); });
+  $("#chatInput").addEventListener("focus", () => markRead());
+  $("#chatBox").addEventListener("click", () => markRead());
+  $("#chatSec").onclick = () => markRead();
   function showChatNote(t){ $("#chatNote").textContent = t || ""; }
 
   async function loadRecent(){
@@ -454,11 +466,34 @@
     box.appendChild(el);
     box.scrollTop = box.scrollHeight;
   }
+  // ---- 未读角标：你上次看之后，阿爪新回了几句 ----
+  const READ_KEY = "azhua_read";
+  function getReadMark(){ return localStorage.getItem(READ_KEY) || ""; }
+  function setReadMark(t){ if (t) localStorage.setItem(READ_KEY, t); }
+  function updateBadge(text){
+    const her = parseDialog(text).filter(x => x.who === "阿爪");
+    const badge = $("#chatBadge");
+    if (!her.length){ badge.style.display = "none"; return; }
+    const last = her[her.length - 1].time;
+    let mark = getReadMark();
+    if (!mark){ setReadMark(last); badge.style.display = "none"; return; }
+    const unread = her.filter(x => x.time > mark).length;
+    if (unread > 0){ badge.textContent = unread > 99 ? "99+" : String(unread); badge.style.display = "inline-block"; }
+    else badge.style.display = "none";
+  }
+  function markRead(){
+    fetchDialog().then(({ dialog }) => {
+      const her = parseDialog(dialog).filter(x => x.who === "阿爪");
+      if (her.length) setReadMark(her[her.length - 1].time);
+      updateBadge(dialog);
+    }).catch(() => {});
+  }
   function renderDialog(text){
     const box = $("#chatBox");
     const items = parseDialog(text).slice(-12);
     if (!items.length){
       box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>你来啦～今天过得怎么样？想聊点啥我都陪你 💬</div></div>`;
+      updateBadge(text);
       return;
     }
     box.innerHTML = items.map(x => {
@@ -473,6 +508,7 @@
       </div>`;
     }).join("");
     box.scrollTop = box.scrollHeight;
+    updateBadge(text);
   }
   async function loadDialog(){
     const box = $("#chatBox");
