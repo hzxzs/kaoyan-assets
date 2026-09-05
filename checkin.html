@@ -288,54 +288,49 @@
 
   // ---- 聊天发送（写对话 + 即时触发回信 + 轮询）----
   async function sendChat(){
-    const token = loadToken();
-    if (!token){ alert("先把我给你的钥匙贴进来保存一下哦"); return; }
     const input = $("#chatInput");
     const msg = input.value.trim();
     if (!msg) return;
     input.value = "";
     const sentTime = stampNow();
     $("#sendChat").disabled = true;
-    await appendDialog(token, msg);
-    loadDialog();
+
+    if (!API_BASE){
+      alert("聊天后端没配上，没法秒回～你先去跟阿爪用别的方式聊吧");
+      $("#sendChat").disabled = false;
+      return;
+    }
+
+    // 先乐观显示自己刚发的这句话（聊天完全走云端，不碰你网页里的令牌）
+    appendLocalMessage("麦麦炫", msg, sentTime);
 
     let liveOk = false;
-    if (API_BASE){
-      // 走用户自己的后端（腾讯云函数等）
-      try {
-        $("#typing").style.display = "block";
-        const r = await fetch(API_BASE, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg, key: ACCESS_KEY })
-        });
-        if (r.ok) liveOk = true; else console.warn("后端返回", r.status);
-      } catch(e){ console.warn("后端异常", e); }
-    } else {
-      // GitHub 原生：触发 workflow 立即跑回信引擎
-      try {
-        const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/azhua-reply.yml/dispatches`, {
-          method: "POST", headers: ghHeaders(token), body: JSON.stringify({ ref: "main" })
-        });
-        if (r.status === 204 || r.status === 202){ liveOk = true; $("#typing").style.display = "block"; }
-        else if (r.status === 403) showChatNote("收到啦～我现在手头有点慢，会在今天几个点（10/14/18/22点）找你回信 💌（想让我秒回，就给钥匙加个「Actions: 读写」权限）");
-        else showChatNote("收到啦～我稍后会回你 💌");
-      } catch(e){ showChatNote("已收到～阿爪稍后会回你 💌"); }
-    }
+    try {
+      $("#typing").style.display = "block";
+      const r = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", message: msg, key: ACCESS_KEY })
+      });
+      if (r.ok) liveOk = true; else console.warn("后端返回", r.status);
+    } catch(e){ console.warn("后端异常", e); }
 
     if (liveOk){
       let got = false;
       for (let i = 0; i < 30; i++){
         await sleep(3000);
         try {
-          const { content } = await getFile(token, DIALOG_FILE);
-          const items = parseDialog(content);
+          const { dialog } = await fetchDialog();
+          const items = parseDialog(dialog);
           if (items.find(x => x.who === "阿爪" && x.time >= sentTime)){ got = true; break; }
         } catch(e){}
       }
       $("#typing").style.display = "none";
-      loadDialog();
+      await loadDialog();
       showChatNote(got ? "" : "我还在想这句，待会打开这页就能看到我回你的 💌");
+    } else {
+      $("#typing").style.display = "none";
+      showChatNote("发送没成功，待会再试试，或者刷新一下页面～");
     }
     $("#sendChat").disabled = false;
   }
@@ -423,7 +418,7 @@
     } catch (e) {}
   }
 
-  // ---- 你和阿爪的对话（含她的回信）----
+  // ---- 你和阿爪的对话（含她的回信，完全走云端读取）----
   function stampNow(){
     const d = new Date(), utc = d.getTime() + d.getTimezoneOffset() * 60000;
     return new Date(utc + 8 * 3600000).toISOString().slice(0, 16).replace("T", " ");
@@ -436,31 +431,66 @@
     }
     return out;
   }
-  async function loadDialog(){
-    const tk = loadToken();
+  // 走云端读对话（不依赖你网页里的令牌）
+  async function fetchDialog(){
+    const r = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "get", key: ACCESS_KEY })
+    });
+    if (!r.ok) throw new Error("dialog get " + r.status);
+    const j = await r.json();
+    return { dialog: j.dialog || "" };
+  }
+  // 乐观地把刚发的消息先画出来
+  function appendLocalMessage(who, text, time){
     const box = $("#chatBox");
-    if (!tk){ box.innerHTML = '<div class="empty">填上令牌，就能看到你和阿爪的对话了</div>'; return; }
+    const empty = box.querySelector(".empty");
+    if (empty) empty.remove();
+    const me = who === "麦麦炫";
+    const el = document.createElement("div");
+    el.className = "msg " + (me ? "me" : "her");
+    el.innerHTML = `<div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${String(time).slice(5)}</div>${text}</div>`;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+  }
+  function renderDialog(text){
+    const box = $("#chatBox");
+    const items = parseDialog(text).slice(-12);
+    if (!items.length){
+      box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>你来啦～今天过得怎么样？想聊点啥我都陪你 💬</div></div>`;
+      return;
+    }
+    box.innerHTML = items.map(x => {
+      const me = x.who === "麦麦炫";
+      const ava = me
+        ? `<div class="msgava me">我</div>`
+        : `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'">`;
+      return `<div class="msg ${me ? "me" : "her"}">
+        ${me ? "" : ava}
+        <div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
+        ${me ? ava : ""}
+      </div>`;
+    }).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+  async function loadDialog(){
+    const box = $("#chatBox");
+    if (!API_BASE){
+      // 没有云端后端时，降级用网页令牌读
+      const tk = loadToken();
+      if (!tk){ box.innerHTML = '<div class="empty">聊天后端没配，但打卡功能照常用钥匙～</div>'; return; }
+      try {
+        const { content } = await getFile(tk, DIALOG_FILE);
+        renderDialog(content);
+      } catch (e) { box.innerHTML = '<div class="empty">对话读取失败：' + e.message + '</div>'; }
+      return;
+    }
     try {
-      const { content } = await getFile(tk, DIALOG_FILE);
-      const items = parseDialog(content).slice(-12);
-      if (!items.length){
-        box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>你来啦～今天过得怎么样？想聊点啥我都陪你 💬</div></div>`;
-        return;
-      }
-      box.innerHTML = items.map(x => {
-        const me = x.who === "麦麦炫";
-        const ava = me
-          ? `<div class="msgava me">我</div>`
-          : `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'">`;
-        return `<div class="msg ${me ? "me" : "her"}">
-          ${me ? "" : ava}
-          <div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
-          ${me ? ava : ""}
-        </div>`;
-      }).join("");
-      box.scrollTop = box.scrollHeight;
+      const { dialog } = await fetchDialog();
+      renderDialog(dialog);
     } catch (e) {
-      box.innerHTML = '<div class="empty">对话读取失败：' + e.message + '</div>';
+      box.innerHTML = '<div class="empty">阿爪的对话框加载失败了，刷新看看～</div>';
     }
   }
 
