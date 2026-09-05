@@ -56,6 +56,19 @@
   .qtag{ font-size:12px; color:var(--pink-d); font-weight:700; margin-bottom:6px; }
   .qtext{ font-size:15px; line-height:1.6; color:var(--ink); }
   .qhint{ font-size:11px; color:#b58aa0; margin-top:8px; }
+  .daily{ margin:16px 0 6px; background:#fff8e6; border:2px solid #ffe0a3; border-radius:16px; padding:14px 16px; }
+  .daily .dt{ font-size:12px; color:#b5820a; font-weight:700; margin-bottom:6px; }
+  .daily .dv{ font-size:15px; line-height:1.6; color:var(--ink); }
+  .chat{ margin:16px 0 6px; max-height:320px; overflow-y:auto; background:#fffafc;
+         border:2px solid #ffd6e8; border-radius:16px; padding:12px; }
+  .msg{ margin:8px 0; display:flex; }
+  .msg .bubble{ max-width:78%; padding:10px 13px; border-radius:16px; font-size:14px; line-height:1.6; }
+  .msg.me{ justify-content:flex-end; }
+  .msg.me .bubble{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; }
+  .msg.her{ justify-content:flex-start; }
+  .msg.her .bubble{ background:#fff0f7; color:var(--ink); border:1px solid #ffd6e8; }
+  .msg .who{ font-size:11px; opacity:.7; margin-bottom:3px; }
+  .empty{ text-align:center; color:#b58aa0; font-size:13px; padding:16px 10px; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -79,18 +92,27 @@
       </div>
 
       <div id="tasks"></div>
+      <div class="daily" id="dailyBox" style="display:none;">
+        <div class="dt">💌 阿爪今天想对你说</div>
+        <div class="dv" id="dailyText"></div>
+      </div>
+
+      <div class="chat" id="chatBox">
+        <div class="empty">填上令牌，就能看到你和阿爪的对话了</div>
+      </div>
+
       <div class="qbox" id="qbox">
         <div class="qtag">💭 阿爪今天想问你</div>
         <div class="qtext" id="qtext">正在想今天该问你点什么…</div>
         <div class="qhint">把答案写在下面那句留言里，阿爪当晚作文会读到哦</div>
       </div>
-      <textarea id="note" placeholder="② 想跟阿爪留句话？也欢迎先回答上面那题～（阿爪当晚写作文会读，越留越懂你）"></textarea>
-      <button id="submit" class="go">完成打卡 ✅</button>
-      <div class="ok" id="ok">已记下啦～明天阿爪会在推送里提到你 💌</div>
+      <textarea id="note" placeholder="② 跟阿爪说说话～（她会定时回你，也会写进今晚的信里）"></textarea>
+      <button id="submit" class="go">打卡 + 发给阿爪 💌</button>
+      <div class="ok" id="ok">记下啦～阿爪过一会儿就来回你 💌</div>
       <div class="recent" id="recent"></div>
       <button id="viewStats" class="go" style="background:linear-gradient(135deg,#9ecbff,#5aa9e8);margin-top:14px;">📊 查看我的打卡记录</button>
       <div id="statsPanel" style="display:none;margin-top:14px;"></div>
-      <div class="hint">数据进 GitHub 私有仓「打卡记录.md / 近况.md」，不开电脑也能打卡</div>
+      <div class="hint">数据进 GitHub 私有仓「打卡记录.md / 近况.md / 对话.md」，不开电脑也能打卡、跟阿爪说话</div>
     </div>
   </div>
 
@@ -99,6 +121,8 @@
   const FILE = "打卡记录.md";
   const NOTE_FILE = "近况.md";
   const TASKS = ["数学一","信号与系统","英语 + 单词","政治","21:30 复盘"];
+  const DIALOG_FILE = "对话.md";
+  const DAILY_FILE = "阿爪的话.md";
   const done = {};
   const $ = (s)=>document.querySelector(s);
 
@@ -201,8 +225,19 @@
         const noteContent = already ? nb : nb + `- ${bj()} 打卡留言：${note}\n`;
         await putFile(token, NOTE_FILE, noteContent, nf.sha);
       }
+
+      // 同一句话也写进「对话.md」——阿爪的回信引擎会定时来读，然后回你
+      if (note) {
+        try {
+          const df = await getFile(token, DIALOG_FILE);
+          const dh = "# 阿爪和麦麦炫的对话\n\n你在打卡网页留的话会到这里，阿爪定时回信。她记得住你们之前聊过的所有事。\n";
+          const base = (df.content && df.content.trim()) ? df.content.replace(/\n+$/, "") + "\n" : dh;
+          const dialogContent = base + `- [${stampNow()}] 麦麦炫：${note}\n`;
+          await putFile(token, DIALOG_FILE, dialogContent, df.sha);
+        } catch (e) { console.warn("写对话失败", e); }
+      }
       $("#ok").style.display = "block";
-      loadRecent();
+      loadRecent(); loadDialog();
     } catch (e) {
       alert("提交失败：" + e.message);
     }
@@ -275,6 +310,56 @@
     $("#qtext").textContent = text + (MOOD_TAG[mood] || "");
   }
 
+  // ---- 阿爪每天想对你说（每日一句）----
+  async function loadDaily(){
+    const tk = loadToken(); if (!tk) return;
+    try {
+      const { content } = await getFile(tk, DAILY_FILE);
+      const lines = [...content.matchAll(/^- \[(\d{4}-\d{2}-\d{2})\] (.*)$/gm)].map(m => ({ d: m[1], t: m[2] }));
+      if (!lines.length) return;
+      const today = bj();
+      const hit = lines.find(x => x.d === today) || lines[lines.length - 1];
+      $("#dailyText").textContent = hit.t;
+      $("#dailyBox").style.display = "block";
+    } catch (e) {}
+  }
+
+  // ---- 你和阿爪的对话（含她的回信）----
+  function stampNow(){
+    const d = new Date(), utc = d.getTime() + d.getTimezoneOffset() * 60000;
+    return new Date(utc + 8 * 3600000).toISOString().slice(0, 16).replace("T", " ");
+  }
+  function parseDialog(text){
+    const out = [];
+    for (const line of text.split("\n")){
+      const m = line.trim().match(/^- \[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] (麦麦炫|阿爪)：(.*)$/);
+      if (m) out.push({ time: m[1], who: m[2], text: m[3] });
+    }
+    return out;
+  }
+  async function loadDialog(){
+    const tk = loadToken();
+    const box = $("#chatBox");
+    if (!tk){ box.innerHTML = '<div class="empty">填上令牌，就能看到你和阿爪的对话了</div>'; return; }
+    try {
+      const { content } = await getFile(tk, DIALOG_FILE);
+      const items = parseDialog(content).slice(-12);
+      if (!items.length){
+        box.innerHTML = '<div class="empty">还没有对话。<br>在下面跟阿爪说句话，她会回你的</div>';
+        return;
+      }
+      box.innerHTML = items.map(x => {
+        const me = x.who === "麦麦炫";
+        return `<div class="msg ${me ? "me" : "her"}">
+          <div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
+        </div>`;
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      box.innerHTML = '<div class="empty">对话读取失败：' + e.message + '</div>';
+    }
+  }
+
   // ---- 查看我的打卡记录（连续天数 + 最近7天日历 + 完成率）----
   $("#viewStats").onclick = async () => {
     const tk = loadToken();
@@ -327,7 +412,7 @@
     }
   };
 
-  setTokenUI(); loadRecent(); loadQuestion();
+  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog();
 </script>
 </body>
 </html>
