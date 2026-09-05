@@ -73,7 +73,7 @@
 
   .chat{ margin:12px 0 4px; max-height:340px; overflow-y:auto; background:#fffafc;
          border:2px solid #ffd6e8; border-radius:16px; padding:12px; }
-  .msg{ margin:8px 0; display:flex; }
+  .msg{ margin:8px 0; display:flex; position:relative; z-index:1; }
   .msg .bubble{ max-width:78%; padding:10px 13px; border-radius:16px; font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
   .msg.me{ justify-content:flex-end; }
   .msg.me .bubble{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; }
@@ -89,7 +89,7 @@
                        font-size:15px; font-family:inherit; color:var(--ink); }
   .chatInputRow input:focus{ outline:none; border-color:var(--pink-d); }
   .chatInputRow .mini{ flex:0 0 auto; padding:0 20px; }
-  .typing{ font-size:13px; color:#b58aa0; padding:6px 2px; display:flex; align-items:center; gap:5px; }
+  .typing{ font-size:13px; color:#b58aa0; padding:6px 2px; display:flex; align-items:center; gap:5px; position:relative; z-index:1; }
   .typing .dot{ width:6px; height:6px; border-radius:50%; background:#e85d9c; opacity:.35; animation:blink 1.2s infinite both; }
   .typing .dot:nth-child(3){ animation-delay:.2s; }
   .typing .dot:nth-child(4){ animation-delay:.4s; }
@@ -111,6 +111,27 @@
   @keyframes popme{ from{ opacity:0; transform:translateY(8px) scale(.96); } to{ opacity:1; transform:none; } }
   @keyframes breathe{ 0%,100%{ transform:translateY(0) scale(1); } 50%{ transform:translateY(-1.5px) scale(1.04); } }
   @keyframes blushpulse{ 0%{ transform:scale(1); } 40%{ transform:scale(1.03); } 100%{ transform:scale(1); } }
+
+  /* ===== 让阿爪「有魂」：会呼吸的氛围 + 她的在场感 ===== */
+  .chat{ position:relative; transition:background .9s ease; background:
+     radial-gradient(120% 80% at 18% 0%, var(--amb1,#fff0f7), transparent 60%),
+     radial-gradient(120% 80% at 92% 100%, var(--amb2,#ffe3f0), transparent 60%),
+     #fffafc; }
+  .chat::before{ content:""; position:absolute; inset:0; border-radius:16px; pointer-events:none; z-index:0;
+     background:radial-gradient(55% 40% at 50% 118%, rgba(255,158,196,.20), transparent 70%);
+     animation:ambient 9s ease-in-out infinite; }
+  @keyframes ambient{ 0%,100%{ opacity:.45; transform:translateY(0); } 50%{ opacity:.9; transform:translateY(-6px); } }
+  .chatHero{ display:flex; align-items:center; gap:10px; padding:2px 2px 9px; }
+  .heroAva{ width:46px; height:46px; border-radius:50%; border:2px solid #fff; object-fit:cover;
+     box-shadow:0 3px 8px rgba(232,93,156,.35); animation:breathe 3.4s ease-in-out infinite; transform-origin:center bottom; }
+  .heroInfo{ flex:1; min-width:0; }
+  .heroName{ font-size:13px; font-weight:800; color:#e85d9c; display:flex; align-items:center; gap:6px; }
+  .heroDot{ width:7px; height:7px; border-radius:50%; background:#5fd08a;
+     box-shadow:0 0 0 3px rgba(95,208,138,.25); animation:blink 2.2s infinite; }
+  .heroInfo .azhuastatus{ margin:3px 0 0; border:0; background:transparent; padding:0; font-size:12px; }
+  body.dark .chat{ background:
+     radial-gradient(120% 80% at 18% 0%, #34263a, transparent 60%),
+     radial-gradient(120% 80% at 92% 100%, #2a1d30, transparent 60%), #221a28; }
 
   /* ===== 夜间模式 ===== */
   body.dark{ background:linear-gradient(160deg,#1a1320,#241826); color:#e9d5e0; }
@@ -173,7 +194,13 @@
           <div class="dt">💌 阿爪今天想对你说</div>
           <div class="dv" id="dailyText"></div>
         </div>
-        <div class="azhuastatus" id="azhuaStatus">阿爪正在整理今天的心情…</div>
+        <div class="chatHero">
+          <img class="heroAva" id="heroAva" src="https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg" alt="阿爪" onerror="this.style.visibility='hidden'">
+          <div class="heroInfo">
+            <div class="heroName">阿爪 <span class="heroDot" title="在呢"></span></div>
+            <div class="azhuastatus" id="azhuaStatus">阿爪正在整理今天的心情…</div>
+          </div>
+        </div>
         <div class="chat" id="chatBox">
           <div class="empty">先把钥匙放进来，就能看到咱俩的对话框啦～</div>
         </div>
@@ -207,7 +234,15 @@
     "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_02.jpg",
     "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_03.jpg",
     "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_04.jpg",
-    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_05.jpg"
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_05.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_06.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_07.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_08.jpg"
+  ];
+  const STICKER_POOL = [
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/sticker_wave.png",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/sticker_sleepy.png",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/sticker_heart.png"
   ];
   function pickAvatar(){
     let h = 0; const d = bj();
@@ -670,11 +705,44 @@
     if (h < 23) return "晚上了，今天也辛苦啦，阿爪在呢 🌆";
     return "这么晚还在？阿爪陪你，但也要早点歇着哦 🌙";
   }
-  function updateAzhuaStatus(){
+  // 氛围随时间流动：让她的"小屋"也跟着白天黑夜变
+  function updateAmbient(){
+    const h = new Date().getHours();
+    let a1, a2;
+    if (h < 6)       { a1 = "#2a2440"; a2 = "#3a2c4a"; }
+    else if (h < 11) { a1 = "#fff3e0"; a2 = "#ffe0ec"; }
+    else if (h < 14) { a1 = "#fff7d6"; a2 = "#ffe3ef"; }
+    else if (h < 18) { a1 = "#e8f3ff"; a2 = "#ffe3f0"; }
+    else if (h < 21) { a1 = "#ffe0c2"; a2 = "#ffd0e6"; }
+    else             { a1 = "#3a2c4a"; a2 = "#4a2c40"; }
+    document.documentElement.style.setProperty("--amb1", a1);
+    document.documentElement.style.setProperty("--amb2", a2);
+  }
+  // 状态栏不再随机念词，而是真实地"看着"现在：时间 + 你的连续天数 + 你最近留的话
+  async function updateAzhuaStatus(){
     const el = $("#azhuaStatus"); if (!el) return;
-    const d = new Date();
-    const idx = (d.getHours() * 7 + d.getDate()) % STATUS_POOL.length;
-    el.textContent = STATUS_POOL[idx];
+    const h = new Date().getHours();
+    const timeLine =
+      h < 6  ? "夜深了，阿爪也还醒着陪你" :
+      h < 11 ? "清晨的光刚进来，阿爪也刚睁眼" :
+      h < 14 ? "午间了，记得吃点东西" :
+      h < 18 ? "下午，阿爪在窗边发呆" :
+      h < 21 ? "傍晚了，阿爪在准备晚上想对你说的话" :
+               "夜里了，阿爪把灯调暗了";
+    const streak = parseInt(localStorage.getItem("azhua_streak") || "0", 10);
+    let extra = streak > 0 ? " · 已连续 " + streak + " 天" : "";
+    let moodLine = "";
+    try {
+      const tk = loadToken();
+      if (tk){
+        const { content } = await getFile(tk, NOTE_FILE);
+        const lines = content.split("\n").filter(l => l.includes("打卡留言"));
+        const last = lines[lines.length - 1] || "";
+        const m = last.match(/留言：(.*)$/);
+        if (m && m[1].trim().length <= 18) moodLine = " · 你还说「" + m[1].trim().slice(0, 16) + "」";
+      }
+    } catch(e){}
+    el.textContent = timeLine + extra + moodLine;
   }
   function flashStatus(text){
     const el = $("#azhuaStatus"); if (!el) return;
@@ -741,19 +809,20 @@
     } catch(e){}
   }
 
-  // ---- 偶尔甩张阿爪表情包 ----
+  // ---- 偶尔甩张阿爪表情包（专属表情图，透明背景更像个贴纸）----
   function maybeSticker(){
-    if (Math.random() < 0.2){
+    if (Math.random() < 0.22){
       const box = $("#chatBox"); if (!box) return;
-      const url = AVATAR_POOL[Math.floor(Math.random() * AVATAR_POOL.length)];
+      const url = STICKER_POOL[Math.floor(Math.random() * STICKER_POOL.length)];
       const el = document.createElement("div");
       el.className = "msg her egg";
-      el.innerHTML = `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><img src="${url}" style="max-width:160px;border-radius:12px;display:block;" alt="阿爪表情"></div>`;
+      el.innerHTML = `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><img src="${url}" style="max-width:150px;border-radius:14px;display:block;" alt="阿爪表情"></div>`;
       box.appendChild(el); box.scrollTop = box.scrollHeight;
     }
   }
 
-  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAzhuaStatus(); applyTheme(); $("#headAvatar").src = AVATAR; loadStreakPraise();
+  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAmbient(); applyTheme();
+  $("#headAvatar").src = AVATAR; $("#heroAva").src = AVATAR; loadStreakPraise().then(updateAzhuaStatus);
   $("#themeToggle").onclick = toggleTheme;
 </script>
 </body>
