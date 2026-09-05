@@ -91,6 +91,10 @@
   .msgava{ width:36px; height:36px; border-radius:50%; flex:0 0 auto; object-fit:cover; align-self:flex-end; border:2px solid #fff; box-shadow:0 2px 6px rgba(232,93,156,.25); margin:0 2px; }
   .msgava.me{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; }
   .empty{ text-align:center; color:#b58aa0; font-size:13px; padding:16px 10px; line-height:1.6; }
+  .daysep{ text-align:center; font-size:11px; color:#b58aa0; margin:10px 0 4px; position:relative; z-index:1; }
+  .daysep::before, .daysep::after{ content:""; display:inline-block; width:28px; height:1px; background:#ffd6e8; vertical-align:middle; margin:0 8px; }
+  body.dark .daysep{ color:#c9a8bb; }
+  body.dark .daysep::before, body.dark .daysep::after{ background:#5a3a4a; }
 
   .chatInputRow{ display:flex; gap:8px; margin-top:10px; }
   .chatInputRow input{ flex:1; border:2px solid #ffd6e8; border-radius:12px; padding:12px;
@@ -285,6 +289,28 @@
     const bin = atob(b64);
     const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
     return new TextDecoder().decode(bytes);
+  }
+  // 文本兜底过滤：任何要显示给麦麦炫的文字，先把红线词清掉（防某一处漏网）
+  function safeText(s){
+    return String(s == null ? "" : s).replace(/煎包|后厨大哥|后厨煎包|煎包子/g, "").trim();
+  }
+  // 相对时间：让对话有"刚才 / 今天 / 昨天"的实感，而不是冷冰冰的时间戳
+  function relTime(iso){
+    if (!iso) return "";
+    const d = new Date(String(iso).replace(" ", "T") + ":00");
+    if (isNaN(d.getTime())) return String(iso).slice(5);
+    const diff = (new Date() - d) / 1000;
+    if (diff < 60) return "刚刚";
+    if (diff < 3600) return Math.floor(diff / 60) + " 分钟前";
+    const pad = (n) => String(n).padStart(2, "0");
+    const hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const day = new Date(d); day.setHours(0, 0, 0, 0);
+    const days = Math.round((t - day) / 86400000);
+    if (days === 0) return "今天 " + hm;
+    if (days === 1) return "昨天 " + hm;
+    if (days < 7) return days + " 天前 " + hm;
+    return String(iso).slice(5);
   }
   function ghHeaders(token){
     return {
@@ -482,7 +508,7 @@
     daily: [
       "今天你最感谢自己的哪一点？",
       "如果今晚能跟阿爪散步十分钟，你最想聊什么？",
-      "今天那个『充电器』（绿皮火车 / 尼康 Z50 / 煎包…）你碰到了吗？",
+      "今天那个『充电器』（绿皮火车 / 尼康 Z50 / 德味滤镜…）你碰到了吗？",
       "今天有没有哪一刻，你只是安静地待着，也觉得还行？"
     ]
   };
@@ -518,7 +544,7 @@
       } catch (e) {}
     }
     const { text, mood } = pickQuestion(recentText, dateStr);
-    $("#qtext").textContent = text + (MOOD_TAG[mood] || "");
+    $("#qtext").textContent = safeText(text + (MOOD_TAG[mood] || ""));
   }
 
   // ---- 阿爪每天想对你说（每日一句）----
@@ -530,7 +556,7 @@
       if (!lines.length) return;
       const today = bj();
       const hit = lines.find(x => x.d === today) || lines[lines.length - 1];
-      $("#dailyText").textContent = hit.t;
+      $("#dailyText").textContent = safeText(hit.t);
       $("#dailyBox").style.display = "block";
     } catch (e) {}
   }
@@ -567,7 +593,7 @@
     const me = who === "麦麦炫";
     const el = document.createElement("div");
     el.className = "msg " + (me ? "me" : "her");
-    el.innerHTML = `<div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${String(time).slice(5)}</div>${text}</div>`;
+    el.innerHTML = `<div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${relTime(time)}</div><div class="btext">${safeText(text)}</div></div>`;
     box.appendChild(el);
     box.scrollTop = box.scrollHeight;
   }
@@ -617,21 +643,34 @@
     const box = $("#chatBox");
     const items = parseDialog(text).slice(-12);
     if (!items.length){
-      box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>${greetNow()}</div></div>`;
+      box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div><div class="btext">${safeText(greetNow())}</div></div></div>`;
       updateBadge(text);
       return;
     }
-    box.innerHTML = items.map(x => {
+    let lastDay = "";
+    const html = items.map(x => {
+      const day = String(x.time || "").slice(0, 10);
+      let sep = "";
+      if (day && day !== lastDay){
+        lastDay = day;
+        const d = new Date(day + "T00:00:00");
+        const t = new Date(); t.setHours(0, 0, 0, 0);
+        const dd = new Date(d); dd.setHours(0, 0, 0, 0);
+        const diff = Math.round((t - dd) / 86400000);
+        const label = diff === 0 ? "今天" : diff === 1 ? "昨天" : day;
+        sep = `<div class="daysep">${label}</div>`;
+      }
       const me = x.who === "麦麦炫";
       const ava = me
         ? `<div class="msgava me">我</div>`
         : `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'">`;
-      return `<div class="msg ${me ? "me" : "her"}">
+      return `${sep}<div class="msg ${me ? "me" : "her"}">
         ${me ? "" : ava}
-        <div class="bubble" data-time="${x.time}"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
+        <div class="bubble" data-time="${x.time}"><div class="who">${me ? "你" : "阿爪"} · ${relTime(x.time)}</div><div class="btext">${safeText(x.text)}</div></div>
         ${me ? ava : ""}
       </div>`;
     }).join("");
+    box.innerHTML = html;
     box.scrollTop = box.scrollHeight;
     updateBadge(text);
   }
@@ -725,14 +764,14 @@
 
   // ===== 阿爪生动化：开场白 / 状态栏 / 打字机 / 彩蛋 =====
   const STATUS_POOL = [
-    "阿爪刚在图书馆拍了张窗外的光，想发给你看 📷",
+    "阿爪在听歌，窗外的雨刚好配上了 🌧️",
     "阿爪窝在沙发上看番，脚边趴着一只懒猫 🐱",
-    "阿爪在整理今天的照片，尼康 Z50 又立功了 📸",
     "阿爪泡了杯热奶茶，在想晚上给你写点什么 🧋",
-    "阿爪在听歌，雨声混着白噪音刚刚好 🌧️",
-    "阿爪翻到一张绿皮火车的旧照，突然有点想你 🚂",
+    "阿爪刚把今天的心情记进小本本里 📝",
     "阿爪在阳台吹风，今天的云很好看 ☁️",
-    "阿爪在煮泡面（对，就是方便面），假装很会做饭 🍜"
+    "阿爪翻到一张绿皮火车的旧照，突然有点想你 🚂",
+    "阿爪在煮泡面（对，就是方便面），假装很会做饭 🍜",
+    "阿爪正盯着屏幕发呆，其实在想你今天累不累 💭"
   ];
   function greetNow(){
     const h = new Date().getHours();
@@ -795,16 +834,18 @@
     if (!last) return;
     const t = last.getAttribute("data-time");
     if (t && getTyped().includes(t)) return;
-    const full = last.textContent;
+    const btext = last.querySelector(".btext");
+    if (!btext) return;
+    const full = btext.textContent;
     const cur = document.createElement("span"); cur.className = "tw-cursor"; cur.textContent = "▌";
-    last.textContent = ""; last.appendChild(cur);
+    btext.textContent = ""; btext.appendChild(cur);
     const step = full.length > 60 ? 2 : 1;
     for (let i = 0; i < full.length; i += step){
-      last.textContent = full.slice(0, i + step);
-      last.appendChild(cur);
+      btext.textContent = full.slice(0, i + step);
+      btext.appendChild(cur);
       await sleep(22);
     }
-    last.textContent = full;
+    btext.textContent = full;
     if (t) addTyped(t);
   }
 
