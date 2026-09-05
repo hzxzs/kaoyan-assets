@@ -111,12 +111,31 @@
   @keyframes popme{ from{ opacity:0; transform:translateY(8px) scale(.96); } to{ opacity:1; transform:none; } }
   @keyframes breathe{ 0%,100%{ transform:translateY(0) scale(1); } 50%{ transform:translateY(-1.5px) scale(1.04); } }
   @keyframes blushpulse{ 0%{ transform:scale(1); } 40%{ transform:scale(1.03); } 100%{ transform:scale(1); } }
+
+  /* ===== 夜间模式 ===== */
+  body.dark{ background:linear-gradient(160deg,#1a1320,#241826); color:#e9d5e0; }
+  body.dark .card{ background:#241a26; box-shadow:0 12px 30px rgba(0,0,0,.45); }
+  body.dark .head{ background:linear-gradient(135deg,#6b3a55,#4a2740); }
+  body.dark .tokenBox{ background:#2e2230; border-color:#7a4a63; }
+  body.dark .tokenBox.saved{ background:#1f3326; }
+  body.dark .tokenBox label, body.dark .secbar{ color:#ff9ec4; }
+  body.dark .secbar{ border-left-color:#7a4a63; }
+  body.dark .hint, body.dark .chatNote, body.dark .recent, body.dark .tokenBox .hint, body.dark .qhint, body.dark .date{ color:#c9a8bb; }
+  body.dark .task{ background:#2a2030; }
+  body.dark textarea, body.dark .chatInputRow input, body.dark .tokenBox input{ background:#1c1522; color:#e9d5e0; border-color:#7a4a63; }
+  body.dark .chat{ background:#221a28; border-color:#5a3a4a; }
+  body.dark .msg.her .bubble{ background:#33262f; color:#f0dde6; border-color:#5a3a4a; }
+  body.dark .azhuastatus{ background:#2a2030; border-color:#7a4a63; color:#c9a8bb; }
+  body.dark .daily{ background:#33260f; border-color:#7a5a1a; }
+  body.dark .qbox{ background:#2a2030; border-color:#7a4a63; }
+  body.dark .badge{ background:linear-gradient(135deg,#6b3a55,#4a2740); }
+  body.dark button.go{ box-shadow:0 8px 18px rgba(0,0,0,.4); }
 </style>
 </head>
 <body>
   <div class="card">
     <div class="head">
-      <img class="avatar" src="https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg" alt="阿爪">
+      <img class="avatar" id="headAvatar" src="https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg" alt="阿爪">
       <h1>阿爪的打卡小屋 🌸</h1>
       <p>乖，做完一项勾一项，我都给你记着呢</p>
     </div>
@@ -149,7 +168,7 @@
 
       <!-- ============ 区块二：跟阿爪聊天 ============ -->
       <div class="sec">
-        <div class="secbar" id="chatSec">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small><span class="badge" id="chatBadge" style="display:none;">0</span></div>
+        <div class="secbar" id="chatSec">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small><span class="badge" id="themeToggle" style="cursor:pointer;background:#fff;color:var(--pink-d);" title="切换日间 / 夜间">🌙</span><span class="badge" id="chatBadge" style="display:none;">0</span></div>
         <div class="daily" id="dailyBox" style="display:none;">
           <div class="dt">💌 阿爪今天想对你说</div>
           <div class="dv" id="dailyText"></div>
@@ -183,7 +202,19 @@
   // 实时对话后端（可选）：填上你自己的后端地址 = 打字秒回；留空 = 走 GitHub 原生即时触发（需 PAT 有 Actions 权限）。
   const API_BASE = "https://1481652270-fwhnyun3h1.ap-guangzhou.tencentscf.com";
   const ACCESS_KEY = "azhua520";
-  const AVATAR = "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg?v=3";
+  const AVATAR_POOL = [
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_01.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_02.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_03.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_04.jpg",
+    "https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/ava_05.jpg"
+  ];
+  function pickAvatar(){
+    let h = 0; const d = bj();
+    for (const c of d) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return AVATAR_POOL[h % AVATAR_POOL.length];
+  }
+  const AVATAR = pickAvatar();
   const done = {};
   const $ = (s)=>document.querySelector(s);
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
@@ -304,7 +335,7 @@
         await putFile(token, NOTE_FILE, noteContent, nf.sha);
       }
       $("#ok").style.display = "block";
-      loadRecent();
+      loadRecent(); loadStreakPraise();
     } catch (e) {
       alert("提交失败：" + e.message);
     }
@@ -355,6 +386,7 @@
       $("#typing").style.display = "none";
       await loadDialog();
       try { await typeLastHer(); } catch(e){}
+      try { maybeSticker(); } catch(e){}
       markRead();
       showChatNote(got ? "" : "我还在想这句，待会打开这页就能看到我回你的 💌");
     } else {
@@ -670,7 +702,59 @@
     if (t) addTyped(t);
   }
 
-  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAzhuaStatus();
+  // ---- 夜间模式 ----
+  function applyTheme(){
+    const saved = localStorage.getItem("azhua_theme");
+    let dark;
+    if (saved) dark = saved === "dark";
+    else { const h = new Date().getHours(); dark = (h >= 21 || h < 6); }
+    document.body.classList.toggle("dark", dark);
+    const t = $("#themeToggle"); if (t) t.textContent = dark ? "☀️" : "🌙";
+  }
+  function toggleTheme(){
+    const now = document.body.classList.toggle("dark");
+    localStorage.setItem("azhua_theme", now ? "dark" : "light");
+    const t = $("#themeToggle"); if (t) t.textContent = now ? "☀️" : "🌙";
+  }
+
+  // ---- 连续打卡：阿爪夸你 ----
+  async function loadStreakPraise(){
+    const tk = loadToken(); if (!tk) return;
+    try {
+      const { content } = await getFile(tk, FILE);
+      const perDay = {};
+      content.split("\n").forEach(l => {
+        const m = l.match(/- (\d{4}-\d{2}-\d{2}) · 打卡：(.*)/);
+        if (m) perDay[m[1]] = m[2];
+      });
+      const dayBefore = (n) => { const d = new Date(); d.setDate(d.getDate() - n); const u = d.getTime() + d.getTimezoneOffset()*60000; return new Date(u + 8*3600000).toISOString().slice(0,10); };
+      let streak = 0; const start = perDay[dayBefore(0)] ? 0 : 1;
+      for (let i = start; i < 400; i++){ if (perDay[dayBefore(i)]) streak++; else break; }
+      const prev = parseInt(localStorage.getItem("azhua_streak") || "0", 10);
+      localStorage.setItem("azhua_streak", String(streak));
+      if (streak > prev && streak > 0){
+        const msgs = ["已经连续 " + streak + " 天啦，牛 💪", "连续 " + streak + " 天没掉链子，阿爪都服你", "哇，连续 " + streak + " 天了，我都记着呢"];
+        flashStatus(msgs[streak % msgs.length]);
+      } else if ([7,14,21,30,50,100].includes(streak) && streak > 0){
+        flashStatus("已经连续 " + streak + " 天啦，这个节点我得记一笔 ✨");
+      }
+    } catch(e){}
+  }
+
+  // ---- 偶尔甩张阿爪表情包 ----
+  function maybeSticker(){
+    if (Math.random() < 0.2){
+      const box = $("#chatBox"); if (!box) return;
+      const url = AVATAR_POOL[Math.floor(Math.random() * AVATAR_POOL.length)];
+      const el = document.createElement("div");
+      el.className = "msg her egg";
+      el.innerHTML = `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><img src="${url}" style="max-width:160px;border-radius:12px;display:block;" alt="阿爪表情"></div>`;
+      box.appendChild(el); box.scrollTop = box.scrollHeight;
+    }
+  }
+
+  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAzhuaStatus(); applyTheme(); $("#headAvatar").src = AVATAR; loadStreakPraise();
+  $("#themeToggle").onclick = toggleTheme;
 </script>
 </body>
 </html>
