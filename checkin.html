@@ -31,6 +31,11 @@
   .mini{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; }
   .mini.ghost{ background:#fff; color:var(--pink-d); border:2px solid #ffd6e8; }
   .tokenBox .hint{ font-size:11px; color:#b58aa0; margin-top:10px; line-height:1.6; }
+
+  .sec{ margin:20px 0; }
+  .secbar{ font-size:14px; font-weight:800; color:#e85d9c; margin:4px 0 12px; padding-left:10px; border-left:4px solid var(--pink); }
+  .secbar small{ font-weight:500; color:#b58aa0; font-size:11px; margin-left:6px; }
+
   .task{ display:flex; align-items:center; gap:14px; padding:14px 16px; margin:10px 0;
          background:var(--bg); border-radius:16px; cursor:pointer; transition:.15s; user-select:none; }
   .task:active{ transform:scale(.98); }
@@ -51,24 +56,35 @@
   .hint{ text-align:center; font-size:12px; color:#b58aa0; margin-top:14px; line-height:1.6; }
   .recent{ margin-top:18px; font-size:13px; color:#8a6b78; }
   .recent b{ color:var(--pink-d); }
+
   .qbox{ margin:16px 0 6px; background:linear-gradient(135deg,#fff0f7,#ffe3f0);
          border:2px solid #ffd6e8; border-radius:16px; padding:14px 16px; box-shadow:0 4px 12px rgba(232,93,156,.14); }
   .qtag{ font-size:12px; color:var(--pink-d); font-weight:700; margin-bottom:6px; }
   .qtext{ font-size:15px; line-height:1.6; color:var(--ink); }
   .qhint{ font-size:11px; color:#b58aa0; margin-top:8px; }
+
   .daily{ margin:16px 0 6px; background:#fff8e6; border:2px solid #ffe0a3; border-radius:16px; padding:14px 16px; }
   .daily .dt{ font-size:12px; color:#b5820a; font-weight:700; margin-bottom:6px; }
   .daily .dv{ font-size:15px; line-height:1.6; color:var(--ink); }
-  .chat{ margin:16px 0 6px; max-height:320px; overflow-y:auto; background:#fffafc;
+
+  .chat{ margin:12px 0 4px; max-height:340px; overflow-y:auto; background:#fffafc;
          border:2px solid #ffd6e8; border-radius:16px; padding:12px; }
   .msg{ margin:8px 0; display:flex; }
-  .msg .bubble{ max-width:78%; padding:10px 13px; border-radius:16px; font-size:14px; line-height:1.6; }
+  .msg .bubble{ max-width:78%; padding:10px 13px; border-radius:16px; font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
   .msg.me{ justify-content:flex-end; }
   .msg.me .bubble{ background:linear-gradient(135deg,var(--pink),var(--pink-d)); color:#fff; }
   .msg.her{ justify-content:flex-start; }
   .msg.her .bubble{ background:#fff0f7; color:var(--ink); border:1px solid #ffd6e8; }
   .msg .who{ font-size:11px; opacity:.7; margin-bottom:3px; }
   .empty{ text-align:center; color:#b58aa0; font-size:13px; padding:16px 10px; line-height:1.6; }
+
+  .chatInputRow{ display:flex; gap:8px; margin-top:10px; }
+  .chatInputRow input{ flex:1; border:2px solid #ffd6e8; border-radius:12px; padding:12px;
+                       font-size:15px; font-family:inherit; color:var(--ink); }
+  .chatInputRow input:focus{ outline:none; border-color:var(--pink-d); }
+  .chatInputRow .mini{ flex:0 0 auto; padding:0 20px; }
+  .typing{ font-size:13px; color:#b58aa0; padding:6px 2px; font-style:italic; }
+  .chatNote{ font-size:12px; color:#8a6b78; margin-top:8px; line-height:1.6; min-height:16px; }
 </style>
 </head>
 <body>
@@ -91,28 +107,42 @@
         <div class="hint">仅保存在你这台手机/浏览器里，不上传任何人；只用于写入打卡记录，可随时在 GitHub 撤销。如果你是用阿爪给你的「专属链接」点进来的，这里已经自动填好了，直接去勾选即可。</div>
       </div>
 
-      <div id="tasks"></div>
-      <div class="daily" id="dailyBox" style="display:none;">
-        <div class="dt">💌 阿爪今天想对你说</div>
-        <div class="dv" id="dailyText"></div>
+      <!-- ============ 区块一：今日打卡 ============ -->
+      <div class="sec">
+        <div class="secbar">📝 今日打卡 <small>只记你今天做了什么</small></div>
+        <div id="tasks"></div>
+        <div class="qbox" id="qbox">
+          <div class="qtag">💭 阿爪今天想问你</div>
+          <div class="qtext" id="qtext">正在想今天该问你点什么…</div>
+          <div class="qhint">把答案写在下面那句里，阿爪当晚作文会读到哦</div>
+        </div>
+        <textarea id="note" placeholder="想跟阿爪说点什么 / 或回答上面那题（写进今晚的信里）"></textarea>
+        <button id="submit" class="go">完成打卡 ✅</button>
+        <div class="ok" id="ok">记下啦～明天阿爪会在推送里提到你 💌</div>
       </div>
 
-      <div class="chat" id="chatBox">
-        <div class="empty">填上令牌，就能看到你和阿爪的对话了</div>
+      <!-- ============ 区块二：跟阿爪聊天 ============ -->
+      <div class="sec">
+        <div class="secbar">💬 跟阿爪聊天 <small>她会回你，且记得你说过的话</small></div>
+        <div class="daily" id="dailyBox" style="display:none;">
+          <div class="dt">💌 阿爪今天想对你说</div>
+          <div class="dv" id="dailyText"></div>
+        </div>
+        <div class="chat" id="chatBox">
+          <div class="empty">填上令牌，就能看到你和阿爪的对话了</div>
+        </div>
+        <div class="typing" id="typing" style="display:none;">阿爪正在输入…</div>
+        <div class="chatInputRow">
+          <input id="chatInput" type="text" placeholder="跟阿爪说点什么…" autocomplete="off">
+          <button id="sendChat" class="mini">发送</button>
+        </div>
+        <div class="chatNote" id="chatNote"></div>
       </div>
 
-      <div class="qbox" id="qbox">
-        <div class="qtag">💭 阿爪今天想问你</div>
-        <div class="qtext" id="qtext">正在想今天该问你点什么…</div>
-        <div class="qhint">把答案写在下面那句留言里，阿爪当晚作文会读到哦</div>
-      </div>
-      <textarea id="note" placeholder="② 跟阿爪说说话～（她会定时回你，也会写进今晚的信里）"></textarea>
-      <button id="submit" class="go">打卡 + 发给阿爪 💌</button>
-      <div class="ok" id="ok">记下啦～阿爪过一会儿就来回你 💌</div>
       <div class="recent" id="recent"></div>
       <button id="viewStats" class="go" style="background:linear-gradient(135deg,#9ecbff,#5aa9e8);margin-top:14px;">📊 查看我的打卡记录</button>
       <div id="statsPanel" style="display:none;margin-top:14px;"></div>
-      <div class="hint">数据进 GitHub 私有仓「打卡记录.md / 近况.md / 对话.md」，不开电脑也能打卡、跟阿爪说话</div>
+      <div class="hint">打卡进 GitHub 私有仓「打卡记录.md / 近况.md」；聊天进「对话.md」。不开电脑也能打卡、跟阿爪说话</div>
     </div>
   </div>
 
@@ -123,11 +153,12 @@
   const TASKS = ["数学一","信号与系统","英语 + 单词","政治","21:30 复盘"];
   const DIALOG_FILE = "对话.md";
   const DAILY_FILE = "阿爪的话.md";
-  // 实时对话后端（腾讯云函数）。留空=定时回信模式；填上地址=打字秒回模式。
+  // 实时对话后端（可选）：填上你自己的后端地址 = 打字秒回；留空 = 走 GitHub 原生即时触发（需 PAT 有 Actions 权限）。
   const API_BASE = "";
-  const ACCESS_KEY = "";   // 后端口令；后端没开校验就留空
+  const ACCESS_KEY = "";
   const done = {};
   const $ = (s)=>document.querySelector(s);
+  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
 
   function bj(){
     const d = new Date(), utc = d.getTime() + d.getTimezoneOffset()*60000;
@@ -160,7 +191,7 @@
   }
   async function putFile(token, file, content, sha){
     const url = `https://api.github.com/repos/${REPO}/contents/${encodeURIComponent(file)}`;
-    const body = JSON.stringify({ message: "checkin update", content: b64encode(content), ...(sha ? { sha } : {}) });
+    const body = JSON.stringify({ message: "update", content: b64encode(content), ...(sha ? { sha } : {}) });
     const r = await fetch(url, { method: "PUT", headers: ghHeaders(token), body });
     if (!r.ok) throw new Error("GitHub PUT " + r.status);
     return r.status;
@@ -219,7 +250,7 @@
     wrap.appendChild(el);
   });
 
-  // ---- 提交 ----
+  // ---- 打卡提交（只写打卡记录 + 近况，不碰对话）----
   $("#submit").onclick = async () => {
     const token = loadToken();
     if (!token){ alert("请先粘贴并保存你的 GitHub PAT"); $("#token").focus(); return; }
@@ -244,34 +275,70 @@
         const noteContent = already ? nb : nb + `- ${bj()} 打卡留言：${note}\n`;
         await putFile(token, NOTE_FILE, noteContent, nf.sha);
       }
-
-      // 留言：配了后端就走实时对话，否则写进「对话.md」等阿爪定时回信
-      if (note) {
-        let realtimeOk = false;
-        if (API_BASE) {
-          try {
-            $("#submit").textContent = "阿爪正在回复…";
-            const r = await fetch(API_BASE, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: note, key: ACCESS_KEY })
-            });
-            const j = await r.json().catch(() => ({}));
-            if (r.ok && j.reply) realtimeOk = true;
-            else console.warn("实时对话失败，转为定时回信:", j.error || r.status);
-          } catch (e) {
-            console.warn("实时对话异常，转为定时回信:", e);
-          }
-        }
-        if (!realtimeOk) await appendDialog(token, note);
-      }
       $("#ok").style.display = "block";
-      loadRecent(); loadDialog();
+      loadRecent();
     } catch (e) {
       alert("提交失败：" + e.message);
     }
     $("#submit").disabled = false; $("#submit").textContent = "完成打卡 ✅";
   };
+
+  // ---- 聊天发送（写对话 + 即时触发回信 + 轮询）----
+  async function sendChat(){
+    const token = loadToken();
+    if (!token){ alert("请先粘贴并保存你的 GitHub PAT"); return; }
+    const input = $("#chatInput");
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = "";
+    const sentTime = stampNow();
+    $("#sendChat").disabled = true;
+    await appendDialog(token, msg);
+    loadDialog();
+
+    let liveOk = false;
+    if (API_BASE){
+      // 走用户自己的后端（腾讯云函数等）
+      try {
+        $("#typing").style.display = "block";
+        const r = await fetch(API_BASE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg, key: ACCESS_KEY })
+        });
+        if (r.ok) liveOk = true; else console.warn("后端返回", r.status);
+      } catch(e){ console.warn("后端异常", e); }
+    } else {
+      // GitHub 原生：触发 workflow 立即跑回信引擎
+      try {
+        const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/azhua-reply.yml/dispatches`, {
+          method: "POST", headers: ghHeaders(token), body: JSON.stringify({ ref: "main" })
+        });
+        if (r.status === 204 || r.status === 202){ liveOk = true; $("#typing").style.display = "block"; }
+        else if (r.status === 403) showChatNote("已收到～阿爪会在今天 4 个时点（10/14/18/22点）之一回你 💌（想让她秒回，给你的 PAT 加一下「Actions: 读写」权限）");
+        else showChatNote("已收到～阿爪稍后会回你 💌");
+      } catch(e){ showChatNote("已收到～阿爪稍后会回你 💌"); }
+    }
+
+    if (liveOk){
+      let got = false;
+      for (let i = 0; i < 30; i++){
+        await sleep(3000);
+        try {
+          const { content } = await getFile(token, DIALOG_FILE);
+          const items = parseDialog(content);
+          if (items.find(x => x.who === "阿爪" && x.time >= sentTime)){ got = true; break; }
+        } catch(e){}
+      }
+      $("#typing").style.display = "none";
+      loadDialog();
+      showChatNote(got ? "" : "阿爪还在想，稍后打开这页就能看到她的回信 💌");
+    }
+    $("#sendChat").disabled = false;
+  }
+  $("#sendChat").onclick = sendChat;
+  $("#chatInput").addEventListener("keydown", (e)=>{ if (e.key === "Enter") sendChat(); });
+  function showChatNote(t){ $("#chatNote").textContent = t || ""; }
 
   async function loadRecent(){
     try {
@@ -389,14 +456,20 @@
     }
   }
 
-  // ---- 把一句话追加进「对话.md」（定时回信模式用）----
-  async function appendDialog(token, note){
-    try {
-      const df = await getFile(token, DIALOG_FILE);
-      const dh = "# 阿爪和麦麦炫的对话\n\n你在打卡网页留的话会到这里，阿爪定时回信。她记得住你们之前聊过的所有事。\n";
-      const base = (df.content && df.content.trim()) ? df.content.replace(/\n+$/, "") + "\n" : dh;
-      await putFile(token, DIALOG_FILE, base + `- [${stampNow()}] 麦麦炫：${note}\n`, df.sha);
-    } catch (e) { console.warn("写对话失败", e); }
+  // ---- 把一句话追加进「对话.md」（带 409 重试）----
+  async function appendDialog(token, note, tries = 3){
+    for (let attempt = 0; attempt < tries; attempt++){
+      try {
+        const df = await getFile(token, DIALOG_FILE);
+        const dh = "# 阿爪和麦麦炫的对话\n\n你在打卡网页留的话会到这里，阿爪定时回信。她记得住你们之前聊过的所有事。\n";
+        const base = (df.content && df.content.trim()) ? df.content.replace(/\n+$/, "") + "\n" : dh;
+        await putFile(token, DIALOG_FILE, base + `- [${stampNow()}] 麦麦炫：${note}\n`, df.sha);
+        return;
+      } catch (e){
+        if (attempt === tries - 1) console.warn("写对话失败", e);
+        await sleep(800);
+      }
+    }
   }
 
   // ---- 查看我的打卡记录（连续天数 + 最近7天日历 + 完成率）----
