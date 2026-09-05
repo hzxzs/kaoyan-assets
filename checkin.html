@@ -101,6 +101,13 @@
                        font-size:15px; font-family:inherit; color:var(--ink); }
   .chatInputRow input:focus{ outline:none; border-color:var(--pink-d); }
   .chatInputRow .mini{ flex:0 0 auto; padding:0 20px; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .chip{ font-size:12px; padding:7px 12px; border-radius:14px; background:#fff0f7; color:#e85d9c;
+         border:1px solid #ffd6e8; cursor:pointer; transition:.15s; }
+  .chip:active{ transform:scale(.95); }
+  body.dark .chip{ background:#2a2030; color:#ff9ec4; border-color:#7a4a63; }
+  .soundBadge{ cursor:pointer; }
+  body.dark .soundBadge{ background:linear-gradient(135deg,#6b3a55,#4a2740); }
   .typing{ font-size:13px; color:#b58aa0; padding:6px 2px; display:flex; align-items:center; gap:5px; position:relative; z-index:1; }
   .typing .dot{ width:6px; height:6px; border-radius:50%; background:#e85d9c; opacity:.35; animation:blink 1.2s infinite both; }
   .typing .dot:nth-child(3){ animation-delay:.2s; }
@@ -211,7 +218,7 @@
 
       <!-- ============ 区块二：跟阿爪聊天 ============ -->
       <div class="sec">
-        <div class="secbar" id="chatSec">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small><span class="badge" id="themeToggle" style="cursor:pointer;background:#fff;color:var(--pink-d);" title="切换日间 / 夜间">🌙</span><span class="badge" id="chatBadge" style="display:none;">0</span></div>
+        <div class="secbar" id="chatSec">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small><span class="badge soundBadge" id="soundToggle" style="cursor:pointer;background:#fff;color:var(--pink-d);" title="回复提示音">🔕</span><span class="badge" id="themeToggle" style="cursor:pointer;background:#fff;color:var(--pink-d);" title="切换日间 / 夜间">🌙</span><span class="badge" id="chatBadge" style="display:none;">0</span></div>
         <div class="daily" id="dailyBox" style="display:none;">
           <div class="dt">💌 阿爪今天想对你说</div>
           <div class="dv" id="dailyText"></div>
@@ -231,6 +238,7 @@
           <input id="chatInput" type="text" placeholder="跟我说点什么…" autocomplete="off">
           <button id="sendChat" class="mini">发给我</button>
         </div>
+        <div class="chips" id="chips"></div>
         <div class="chatNote" id="chatNote"></div>
       </div>
 
@@ -428,6 +436,7 @@
     if (!msg) return;
     if (/(想你|想我|爱你|抱抱|喜欢你)/.test(msg)) flashStatus("阿爪：……（耳朵悄悄红了）🥺");
     if (/加油/.test(msg)) flashStatus("阿爪：别对自己说加油啦，你已经够好了 💗");
+    if (/(我喜欢|我怕|我最|我记得|我讨厌|我梦想|我想成为)/.test(msg)) flashStatus("阿爪把这句偷偷记下了 💗");
     input.value = "";
     const sentTime = stampNow();
     $("#sendChat").disabled = true;
@@ -464,6 +473,7 @@
       }
       $("#typing").style.display = "none";
       await loadDialog();
+      playDing();
       try { await typeLastHer(); } catch(e){}
       try { maybeSticker(); } catch(e){}
       markRead();
@@ -593,7 +603,7 @@
     const me = who === "麦麦炫";
     const el = document.createElement("div");
     el.className = "msg " + (me ? "me" : "her");
-    el.innerHTML = `<div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${relTime(time)}</div><div class="btext">${safeText(text)}</div></div>`;
+    el.innerHTML = `<div class="bubble" title="${time}"><div class="who">${me ? "你" : "阿爪"} · ${relTime(time)}</div><div class="btext">${safeText(text)}</div></div>`;
     box.appendChild(el);
     box.scrollTop = box.scrollHeight;
   }
@@ -641,7 +651,7 @@
   }
   function renderDialog(text){
     const box = $("#chatBox");
-    const items = parseDialog(text).slice(-12);
+    const items = parseDialog(text).slice(-40);
     if (!items.length){
       box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div><div class="btext">${safeText(greetNow())}</div></div></div>`;
       updateBadge(text);
@@ -666,12 +676,14 @@
         : `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'">`;
       return `${sep}<div class="msg ${me ? "me" : "her"}">
         ${me ? "" : ava}
-        <div class="bubble" data-time="${x.time}"><div class="who">${me ? "你" : "阿爪"} · ${relTime(x.time)}</div><div class="btext">${safeText(x.text)}</div></div>
+        <div class="bubble" data-time="${x.time}" title="${x.time}"><div class="who">${me ? "你" : "阿爪"} · ${relTime(x.time)}</div><div class="btext">${safeText(x.text)}</div></div>
         ${me ? ava : ""}
       </div>`;
     }).join("");
     box.innerHTML = html;
     box.scrollTop = box.scrollHeight;
+    const lastHer = items.filter(x => x.who === "阿爪").pop();
+    if (lastHer) reactAmbient(lastHer.text);
     updateBadge(text);
   }
   async function loadDialog(){
@@ -900,6 +912,54 @@
     }
   }
 
+  // ---- 快捷回复气泡：降低开口门槛，也让她更像在等你开口 ----
+  const CHIP_POOL = {
+    night:   ["有点睡不着…", "陪我聊会儿", "今天好累", "想你了"],
+    morning: ["早呀阿爪", "昨晚睡得还行", "今天想通了一题", "慢慢来不急"],
+    day:     ["学累了想摸鱼", "今天过得还不错", "有点想家", "陪我聊会儿"],
+    evening: ["今天有点累", "想你了", "今天值得记一笔", "陪我聊会儿"]
+  };
+  function renderChips(){
+    const h = new Date().getHours();
+    const key = h < 6 ? "night" : h < 11 ? "morning" : h < 18 ? "day" : "evening";
+    const box = $("#chips"); if (!box) return; box.innerHTML = "";
+    CHIP_POOL[key].forEach(t => {
+      const c = document.createElement("div"); c.className = "chip"; c.textContent = t;
+      c.onclick = () => { const inp = $("#chatInput"); inp.value = t; inp.focus(); };
+      box.appendChild(c);
+    });
+  }
+
+  // ---- 她的回复会"染"房间：根据语气微调聊天区氛围，像真的被她的话影响 ----
+  function reactAmbient(text){
+    const t = String(text || "");
+    let a1, a2;
+    if (/(累|烦|崩|焦|哭|疼|痛|难|丧)/.test(t)){ a1 = "#ffe3cf"; a2 = "#ffd0e6"; }            // 心疼·暖橙
+    else if (/(哈|嘻|可爱|喜欢|爱|抱|开心|爽|骄傲|乖)/.test(t)){ a1 = "#e8fff4"; a2 = "#ffe3f0"; } // 甜·薄荷
+    else if (/(？|\?|为什么|怎么|吗|呢)/.test(t)){ a1 = "#e8f3ff"; a2 = "#ffe3f0"; }              // 好奇·浅蓝
+    else { a1 = "#fff0f7"; a2 = "#ffe3f0"; }                                                    // 默认·粉
+    document.documentElement.style.setProperty("--amb1", a1);
+    document.documentElement.style.setProperty("--amb2", a2);
+  }
+
+  // ---- 回复提示音（无需音频文件，WebAudio 实时合成）----
+  let soundOn = localStorage.getItem("azhua_sound") === "1";
+  function playDing(){
+    if (!soundOn) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "sine"; o.frequency.value = 880;
+      const t0 = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+      o.start(t0); o.stop(t0 + 0.45);
+    } catch(e){}
+  }
+
   // ---- 独立窗口（已安装为 App）时启用全屏布局 ----
   if ((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone){
     document.body.classList.add("standalone");
@@ -915,6 +975,14 @@
   setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAmbient(); applyTheme();
   $("#headAvatar").src = AVATAR; $("#heroAva").src = AVATAR; loadStreakPraise().then(updateAzhuaStatus);
   $("#themeToggle").onclick = toggleTheme;
+  renderChips();
+  if ($("#soundToggle")) $("#soundToggle").textContent = soundOn ? "🔔" : "🔕";
+  $("#soundToggle").onclick = () => {
+    soundOn = !soundOn;
+    localStorage.setItem("azhua_sound", soundOn ? "1" : "0");
+    const el = $("#soundToggle"); if (el) el.textContent = soundOn ? "🔔" : "🔕";
+    if (soundOn) playDing();
+  };
 </script>
 </body>
 </html>
