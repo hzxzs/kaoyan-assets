@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e85d9c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="阿爪的小屋">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>阿爪的打卡小屋 🌸</title>
 <style>
   :root{ --pink:#ff9ec4; --pink-d:#e85d9c; --ink:#5a3a48; --bg:#fff5fa; }
@@ -151,6 +159,16 @@
   body.dark .qbox{ background:#2a2030; border-color:#7a4a63; }
   body.dark .badge{ background:linear-gradient(135deg,#6b3a55,#4a2740); }
   body.dark button.go{ box-shadow:0 8px 18px rgba(0,0,0,.4); }
+
+  /* ===== 安装成 App 后的独立窗口体验（Mac Dock / iOS 主屏幕）===== */
+  img, .avatar, .heroAva, .msgava{ -webkit-touch-callout:none; user-select:none; }
+  body.standalone{ padding:0; background:linear-gradient(160deg,#fff0f7,#ffe3f0); }
+  body.standalone.dark{ background:linear-gradient(160deg,#1a1320,#241826); }
+  body.standalone .card{ max-width:none; border-radius:0; min-height:100vh; box-shadow:none;
+     padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+     padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+  body.standalone{ overscroll-behavior:none; }
+  body.standalone .head{ padding-top:calc(22px + env(safe-area-inset-top)); }
 </style>
 </head>
 <body>
@@ -557,6 +575,25 @@
   const READ_KEY = "azhua_read";
   function getReadMark(){ return localStorage.getItem(READ_KEY) || ""; }
   function setReadMark(t){ if (t) localStorage.setItem(READ_KEY, t); }
+  // ---- Dock / 主屏幕红点未读：仅当把本页「安装成 App」后才生效 ----
+  function computeUnread(text){
+    const her = parseDialog(text).filter(x => x.who === "阿爪");
+    if (!her.length) return 0;
+    const last = her[her.length - 1].time;
+    const mark = getReadMark();
+    if (!mark){ setReadMark(last); return 0; }
+    return her.filter(x => x.time > mark).length;
+  }
+  async function syncAppBadge(text){
+    const n = computeUnread(text);
+    try {
+      if ("setAppBadge" in navigator){
+        if (n > 0) await navigator.setAppBadge(Math.min(n, 99));
+        else await navigator.clearAppBadge();
+      }
+    } catch(e){}
+    return n;
+  }
   function updateBadge(text){
     const her = parseDialog(text).filter(x => x.who === "阿爪");
     const badge = $("#chatBadge");
@@ -567,6 +604,7 @@
     const unread = her.filter(x => x.time > mark).length;
     if (unread > 0){ badge.textContent = unread > 99 ? "99+" : String(unread); badge.style.display = "inline-block"; }
     else badge.style.display = "none";
+    syncAppBadge(text);
   }
   function markRead(){
     fetchDialog().then(({ dialog }) => {
@@ -820,6 +858,18 @@
       box.appendChild(el); box.scrollTop = box.scrollHeight;
     }
   }
+
+  // ---- 独立窗口（已安装为 App）时启用全屏布局 ----
+  if ((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone){
+    document.body.classList.add("standalone");
+  }
+  // ---- 后台静默轮询：阿爪在别处回你，图标红点会自动亮 ----
+  async function pollBadge(){
+    if (!API_BASE) return;
+    try { const { dialog } = await fetchDialog(); updateBadge(dialog); } catch(e){}
+  }
+  setInterval(pollBadge, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pollBadge(); });
 
   setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAmbient(); applyTheme();
   $("#headAvatar").src = AVATAR; $("#heroAva").src = AVATAR; loadStreakPraise().then(updateAzhuaStatus);
