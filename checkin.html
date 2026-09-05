@@ -92,7 +92,7 @@
     <div class="head">
       <img class="avatar" src="https://cdn.jsdelivr.net/gh/hzxzs/kaoyan-assets@main/icon_v3.jpg" alt="阿爪">
       <h1>阿爪的打卡小屋 🌸</h1>
-      <p>做完一项就勾一项，阿爪都记着呢</p>
+      <p>乖，做完一项勾一项，我都给你记着呢</p>
     </div>
     <div class="body">
       <div class="date" id="date"></div>
@@ -104,45 +104,45 @@
           <button id="saveToken" class="mini">保存</button>
           <button id="clearToken" class="mini ghost">清除</button>
         </div>
-        <div class="hint">仅保存在你这台手机/浏览器里，不上传任何人；只用于写入打卡记录，可随时在 GitHub 撤销。如果你是用阿爪给你的「专属链接」点进来的，这里已经自动填好了，直接去勾选即可。</div>
+        <div class="hint">这把钥匙只藏在你手机里，不往外传；它只用来帮你写打卡，哪天不想要了去 GitHub 一删就好。用我给你的专属链接进来的话，这儿已经帮你填好啦，直接去勾选就行～</div>
       </div>
 
       <!-- ============ 区块一：今日打卡 ============ -->
       <div class="sec">
-        <div class="secbar">📝 今日打卡 <small>只记你今天做了什么</small></div>
+        <div class="secbar">📝 今日打卡 <small>今天做了啥，我都替你记着</small></div>
         <div id="tasks"></div>
         <div class="qbox" id="qbox">
           <div class="qtag">💭 阿爪今天想问你</div>
-          <div class="qtext" id="qtext">正在想今天该问你点什么…</div>
-          <div class="qhint">把答案写在下面那句里，阿爪当晚作文会读到哦</div>
+          <div class="qtext" id="qtext">让我想想今天该问你点什么好…</div>
+          <div class="qhint">把答案写在下面呀，今晚我写作文会用到～</div>
         </div>
-        <textarea id="note" placeholder="想跟阿爪说点什么 / 或回答上面那题（写进今晚的信里）"></textarea>
+        <textarea id="note" placeholder="想跟我说点什么 / 或回答上面那题（会进我今晚的信里）"></textarea>
         <button id="submit" class="go">完成打卡 ✅</button>
-        <div class="ok" id="ok">记下啦～明天阿爪会在推送里提到你 💌</div>
+        <div class="ok" id="ok">记好啦～明天的推送里我就会提到你 💌</div>
       </div>
 
       <!-- ============ 区块二：跟阿爪聊天 ============ -->
       <div class="sec">
-        <div class="secbar">💬 跟阿爪聊天 <small>她会回你，且记得你说过的话</small></div>
+        <div class="secbar">💬 跟阿爪聊天 <small>我秒回你，也记得你说过的话</small></div>
         <div class="daily" id="dailyBox" style="display:none;">
           <div class="dt">💌 阿爪今天想对你说</div>
           <div class="dv" id="dailyText"></div>
         </div>
         <div class="chat" id="chatBox">
-          <div class="empty">填上令牌，就能看到你和阿爪的对话了</div>
+          <div class="empty">先把钥匙放进来，就能看到咱俩的对话框啦～</div>
         </div>
         <div class="typing" id="typing" style="display:none;">阿爪正在输入…</div>
         <div class="chatInputRow">
-          <input id="chatInput" type="text" placeholder="跟阿爪说点什么…" autocomplete="off">
-          <button id="sendChat" class="mini">发送</button>
+          <input id="chatInput" type="text" placeholder="跟我说点什么…" autocomplete="off">
+          <button id="sendChat" class="mini">发给我</button>
         </div>
         <div class="chatNote" id="chatNote"></div>
       </div>
 
       <div class="recent" id="recent"></div>
-      <button id="viewStats" class="go" style="background:linear-gradient(135deg,#9ecbff,#5aa9e8);margin-top:14px;">📊 查看我的打卡记录</button>
+      <button id="viewStats" class="go" style="background:linear-gradient(135deg,#9ecbff,#5aa9e8);margin-top:14px;">📊 看看我的打卡记录</button>
       <div id="statsPanel" style="display:none;margin-top:14px;"></div>
-      <div class="hint">打卡进 GitHub 私有仓「打卡记录.md / 近况.md」；聊天进「对话.md」。不开电脑也能打卡、跟阿爪说话</div>
+      <div class="hint">打卡存进我的小仓库（私有，只有你能看）；聊天也进同一个仓库。不开电脑也能打卡、找我说话～</div>
     </div>
   </div>
 
@@ -206,10 +206,10 @@
     box.classList.add("saved");
     box.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <div style="font-size:13px;color:#1f9d62;font-weight:700;">令牌已记住 ✓</div>
-        <button id="clearToken2" class="mini ghost" style="flex:0 0 auto;padding:8px 14px;">清除</button>
+      <div style="font-size:13px;color:#1f9d62;font-weight:700;">钥匙已经记住啦 ✓</div>
+      <button id="clearToken2" class="mini ghost" style="flex:0 0 auto;padding:8px 14px;">清除</button>
       </div>
-      <div class="hint">已经记住了，以后打开不用再填。换设备的话，重新用阿爪给你的专属链接打开一次就好。</div>`;
+      <div class="hint">记住啦，以后打开不用再填。换设备的话，重新用我给你的专属链接打开一次就好～</div>`;
     $("#clearToken2").onclick = () => {
       if (!confirm("清除后需要重新粘贴令牌，确定吗？")) return;
       localStorage.removeItem("azhua_pat");
@@ -221,7 +221,7 @@
     if (!v){ alert("先粘贴 token"); return; }
     localStorage.setItem("azhua_pat", v);
     $("#tokenBox").classList.add("saved");
-    alert("已保存（仅本机，可随时清除）");
+    alert("好啦，存好了（只在这台手机，想删随时删）");
   };
   $("#clearToken").onclick = () => {
     localStorage.removeItem("azhua_pat");
@@ -253,7 +253,7 @@
   // ---- 打卡提交（只写打卡记录 + 近况，不碰对话）----
   $("#submit").onclick = async () => {
     const token = loadToken();
-    if (!token){ alert("请先粘贴并保存你的 GitHub PAT"); $("#token").focus(); return; }
+    if (!token){ alert("先把我给你的钥匙贴进来保存一下哦"); $("#token").focus(); return; }
     const tasks = TASKS.map((t, i) => ({ name: t, done: done[i] }));
     const note = $("#note").value.trim();
     $("#submit").disabled = true; $("#submit").textContent = "提交中…";
@@ -286,7 +286,7 @@
   // ---- 聊天发送（写对话 + 即时触发回信 + 轮询）----
   async function sendChat(){
     const token = loadToken();
-    if (!token){ alert("请先粘贴并保存你的 GitHub PAT"); return; }
+    if (!token){ alert("先把我给你的钥匙贴进来保存一下哦"); return; }
     const input = $("#chatInput");
     const msg = input.value.trim();
     if (!msg) return;
@@ -315,8 +315,8 @@
           method: "POST", headers: ghHeaders(token), body: JSON.stringify({ ref: "main" })
         });
         if (r.status === 204 || r.status === 202){ liveOk = true; $("#typing").style.display = "block"; }
-        else if (r.status === 403) showChatNote("已收到～阿爪会在今天 4 个时点（10/14/18/22点）之一回你 💌（想让她秒回，给你的 PAT 加一下「Actions: 读写」权限）");
-        else showChatNote("已收到～阿爪稍后会回你 💌");
+        else if (r.status === 403) showChatNote("收到啦～我现在手头有点慢，会在今天几个点（10/14/18/22点）找你回信 💌（想让我秒回，就给钥匙加个「Actions: 读写」权限）");
+        else showChatNote("收到啦～我稍后会回你 💌");
       } catch(e){ showChatNote("已收到～阿爪稍后会回你 💌"); }
     }
 
@@ -332,7 +332,7 @@
       }
       $("#typing").style.display = "none";
       loadDialog();
-      showChatNote(got ? "" : "阿爪还在想，稍后打开这页就能看到她的回信 💌");
+      showChatNote(got ? "" : "我还在想这句，待会打开这页就能看到我回你的 💌");
     }
     $("#sendChat").disabled = false;
   }
@@ -441,7 +441,7 @@
       const { content } = await getFile(tk, DIALOG_FILE);
       const items = parseDialog(content).slice(-12);
       if (!items.length){
-        box.innerHTML = '<div class="empty">还没有对话。<br>在下面跟阿爪说句话，她会回你的</div>';
+        box.innerHTML = '<div class="empty">咱俩还没聊过呢。<br>下面说点啥吧，我接着你～</div>';
         return;
       }
       box.innerHTML = items.map(x => {
@@ -475,7 +475,7 @@
   // ---- 查看我的打卡记录（连续天数 + 最近7天日历 + 完成率）----
   $("#viewStats").onclick = async () => {
     const tk = loadToken();
-    if (!tk){ alert("先填并保存你的 GitHub PAT，才能查看哦"); return; }
+    if (!tk){ alert("先把我给你的钥匙贴进来保存一下，才能看哦"); return; }
     const panel = $("#statsPanel");
     panel.style.display = "block";
     panel.innerHTML = "读取中…";
@@ -517,7 +517,7 @@
           <div style="font-size:18px;font-weight:700;color:#e85d9c;text-align:center;">🔥 连续打卡 ${streak} 天</div>
           <div style="text-align:center;color:#8a6b78;margin:6px 0 14px;">近7天总完成率 ${rate}%</div>
           <div style="display:flex;gap:6px;">${cal}</div>
-          <div style="text-align:center;font-size:11px;color:#b58aa0;margin-top:12px;">数据来自 GitHub 私有仓打卡记录</div>
+          <div style="text-align:center;font-size:11px;color:#b58aa0;margin-top:12px;">数据都在咱的小仓库里</div>
         </div>`;
     } catch (e) {
       panel.innerHTML = "读取失败：" + e.message;
