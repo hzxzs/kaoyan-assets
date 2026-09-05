@@ -95,6 +95,22 @@
   .typing .dot:nth-child(4){ animation-delay:.4s; }
   @keyframes blink{ 0%,80%,100%{ transform:scale(.55); opacity:.25 } 40%{ transform:scale(1); opacity:1 } }
   .chatNote{ font-size:12px; color:#8a6b78; margin-top:8px; line-height:1.6; min-height:16px; }
+
+  /* ===== 阿爪生动化增强 ===== */
+  .azhuastatus{ display:flex; align-items:center; gap:6px; font-size:12px; color:#b58aa0;
+                background:#fff0f7; border:1px dashed #ffc4dd; border-radius:12px; padding:8px 12px; margin:10px 0 6px;
+                transition:.3s; }
+  .azhuastatus::before{ content:"🐾"; }
+  .azhuastatus.blush{ color:#e85d9c; font-weight:700; border-color:#e85d9c; border-style:solid; animation:blushpulse .6s ease; }
+  .msg.her .bubble{ animation:pop .38s cubic-bezier(.2,.8,.3,1.2) both; }
+  .msg.me .bubble{ animation:popme .38s cubic-bezier(.2,.8,.3,1.2) both; }
+  .msgava:not(.me){ animation:breathe 3.4s ease-in-out infinite; transform-origin:center bottom; }
+  .msg.egg .bubble{ background:linear-gradient(135deg,#fff0d6,#ffe0ef); border:1px solid #ffb3d1; box-shadow:0 0 0 3px rgba(232,93,156,.12); }
+  .tw-cursor{ display:inline-block; color:var(--pink-d); animation:blink 1s steps(1) infinite; margin-left:1px; }
+  @keyframes pop{ from{ opacity:0; transform:translateY(8px) scale(.96); } to{ opacity:1; transform:none; } }
+  @keyframes popme{ from{ opacity:0; transform:translateY(8px) scale(.96); } to{ opacity:1; transform:none; } }
+  @keyframes breathe{ 0%,100%{ transform:translateY(0) scale(1); } 50%{ transform:translateY(-1.5px) scale(1.04); } }
+  @keyframes blushpulse{ 0%{ transform:scale(1); } 40%{ transform:scale(1.03); } 100%{ transform:scale(1); } }
 </style>
 </head>
 <body>
@@ -138,6 +154,7 @@
           <div class="dt">💌 阿爪今天想对你说</div>
           <div class="dv" id="dailyText"></div>
         </div>
+        <div class="azhuastatus" id="azhuaStatus">阿爪正在整理今天的心情…</div>
         <div class="chat" id="chatBox">
           <div class="empty">先把钥匙放进来，就能看到咱俩的对话框啦～</div>
         </div>
@@ -299,6 +316,8 @@
     const input = $("#chatInput");
     const msg = input.value.trim();
     if (!msg) return;
+    if (/(想你|想我|爱你|抱抱|喜欢你)/.test(msg)) flashStatus("阿爪：……（耳朵悄悄红了）🥺");
+    if (/加油/.test(msg)) flashStatus("阿爪：别对自己说加油啦，你已经够好了 💗");
     input.value = "";
     const sentTime = stampNow();
     $("#sendChat").disabled = true;
@@ -335,6 +354,7 @@
       }
       $("#typing").style.display = "none";
       await loadDialog();
+      try { await typeLastHer(); } catch(e){}
       markRead();
       showChatNote(got ? "" : "我还在想这句，待会打开这页就能看到我回你的 💌");
     } else {
@@ -492,7 +512,7 @@
     const box = $("#chatBox");
     const items = parseDialog(text).slice(-12);
     if (!items.length){
-      box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>你来啦～今天过得怎么样？想聊点啥我都陪你 💬</div></div>`;
+      box.innerHTML = `<div class="msg her"><img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'"><div class="bubble"><div class="who">阿爪 · 刚刚</div>${greetNow()}</div></div>`;
       updateBadge(text);
       return;
     }
@@ -503,7 +523,7 @@
         : `<img class="msgava" src="${AVATAR}" alt="阿爪" onerror="this.style.visibility='hidden'">`;
       return `<div class="msg ${me ? "me" : "her"}">
         ${me ? "" : ava}
-        <div class="bubble"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
+        <div class="bubble" data-time="${x.time}"><div class="who">${me ? "你" : "阿爪"} · ${x.time.slice(5)}</div>${x.text}</div>
         ${me ? ava : ""}
       </div>`;
     }).join("");
@@ -598,7 +618,59 @@
     }
   };
 
-  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog();
+  // ===== 阿爪生动化：开场白 / 状态栏 / 打字机 / 彩蛋 =====
+  const STATUS_POOL = [
+    "阿爪刚在图书馆拍了张窗外的光，想发给你看 📷",
+    "阿爪窝在沙发上看番，脚边趴着一只懒猫 🐱",
+    "阿爪在整理今天的照片，尼康 Z50 又立功了 📸",
+    "阿爪泡了杯热奶茶，在想晚上给你写点什么 🧋",
+    "阿爪在听歌，雨声混着白噪音刚刚好 🌧️",
+    "阿爪翻到一张绿皮火车的旧照，突然有点想你 🚂",
+    "阿爪在阳台吹风，今天的云很好看 ☁️",
+    "阿爪在煮泡面（对，就是方便面），假装很会做饭 🍜"
+  ];
+  function greetNow(){
+    const h = new Date().getHours();
+    if (h < 6)  return "这么晚还没睡？阿爪陪着你呢，累了就靠一会儿 🌙";
+    if (h < 11) return "早呀～今天也慢慢来，不着急 🌞";
+    if (h < 14) return "中午啦，记得吃点东西再战，别饿着 🍚";
+    if (h < 18) return "下午好，学累了就抬头看看窗外 🌿";
+    if (h < 23) return "晚上了，今天也辛苦啦，阿爪在呢 🌆";
+    return "这么晚还在？阿爪陪你，但也要早点歇着哦 🌙";
+  }
+  function updateAzhuaStatus(){
+    const el = $("#azhuaStatus"); if (!el) return;
+    const d = new Date();
+    const idx = (d.getHours() * 7 + d.getDate()) % STATUS_POOL.length;
+    el.textContent = STATUS_POOL[idx];
+  }
+  function flashStatus(text){
+    const el = $("#azhuaStatus"); if (!el) return;
+    const old = el.textContent; el.textContent = text; el.classList.add("blush");
+    setTimeout(() => { el.textContent = old; el.classList.remove("blush"); }, 3500);
+  }
+  const TYPED_KEY = "azhua_typed";
+  function getTyped(){ try { return JSON.parse(localStorage.getItem(TYPED_KEY) || "[]"); } catch(e){ return []; } }
+  function addTyped(t){ const s = getTyped(); if (!s.includes(t)){ s.push(t); localStorage.setItem(TYPED_KEY, JSON.stringify(s.slice(-60))); } }
+  async function typeLastHer(){
+    const last = [...document.querySelectorAll("#chatBox .msg.her .bubble")].pop();
+    if (!last) return;
+    const t = last.getAttribute("data-time");
+    if (t && getTyped().includes(t)) return;
+    const full = last.textContent;
+    const cur = document.createElement("span"); cur.className = "tw-cursor"; cur.textContent = "▌";
+    last.textContent = ""; last.appendChild(cur);
+    const step = full.length > 60 ? 2 : 1;
+    for (let i = 0; i < full.length; i += step){
+      last.textContent = full.slice(0, i + step);
+      last.appendChild(cur);
+      await sleep(22);
+    }
+    last.textContent = full;
+    if (t) addTyped(t);
+  }
+
+  setTokenUI(); loadRecent(); loadQuestion(); loadDaily(); loadDialog(); updateAzhuaStatus();
 </script>
 </body>
 </html>
