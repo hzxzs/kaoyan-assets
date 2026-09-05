@@ -123,6 +123,9 @@
   const TASKS = ["数学一","信号与系统","英语 + 单词","政治","21:30 复盘"];
   const DIALOG_FILE = "对话.md";
   const DAILY_FILE = "阿爪的话.md";
+  // 实时对话后端（腾讯云函数）。留空=定时回信模式；填上地址=打字秒回模式。
+  const API_BASE = "";
+  const ACCESS_KEY = "";   // 后端口令；后端没开校验就留空
   const done = {};
   const $ = (s)=>document.querySelector(s);
 
@@ -165,7 +168,23 @@
 
   // ---- token 持久化（仅本机 localStorage）----
   function loadToken(){ return localStorage.getItem("azhua_pat") || ""; }
-  function setTokenUI(){ const t = loadToken(); if (t){ $("#token").value = t; $("#tokenBox").classList.add("saved"); } }
+  function setTokenUI(){
+    const t = loadToken();
+    if (!t) return;
+    const box = $("#tokenBox");
+    box.classList.add("saved");
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font-size:13px;color:#1f9d62;font-weight:700;">令牌已记住 ✓</div>
+        <button id="clearToken2" class="mini ghost" style="flex:0 0 auto;padding:8px 14px;">清除</button>
+      </div>
+      <div class="hint">已经记住了，以后打开不用再填。换设备的话，重新用阿爪给你的专属链接打开一次就好。</div>`;
+    $("#clearToken2").onclick = () => {
+      if (!confirm("清除后需要重新粘贴令牌，确定吗？")) return;
+      localStorage.removeItem("azhua_pat");
+      location.reload();
+    };
+  }
   $("#saveToken").onclick = () => {
     const v = $("#token").value.trim();
     if (!v){ alert("先粘贴 token"); return; }
@@ -226,15 +245,25 @@
         await putFile(token, NOTE_FILE, noteContent, nf.sha);
       }
 
-      // 同一句话也写进「对话.md」——阿爪的回信引擎会定时来读，然后回你
+      // 留言：配了后端就走实时对话，否则写进「对话.md」等阿爪定时回信
       if (note) {
-        try {
-          const df = await getFile(token, DIALOG_FILE);
-          const dh = "# 阿爪和麦麦炫的对话\n\n你在打卡网页留的话会到这里，阿爪定时回信。她记得住你们之前聊过的所有事。\n";
-          const base = (df.content && df.content.trim()) ? df.content.replace(/\n+$/, "") + "\n" : dh;
-          const dialogContent = base + `- [${stampNow()}] 麦麦炫：${note}\n`;
-          await putFile(token, DIALOG_FILE, dialogContent, df.sha);
-        } catch (e) { console.warn("写对话失败", e); }
+        let realtimeOk = false;
+        if (API_BASE) {
+          try {
+            $("#submit").textContent = "阿爪正在回复…";
+            const r = await fetch(API_BASE, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: note, key: ACCESS_KEY })
+            });
+            const j = await r.json().catch(() => ({}));
+            if (r.ok && j.reply) realtimeOk = true;
+            else console.warn("实时对话失败，转为定时回信:", j.error || r.status);
+          } catch (e) {
+            console.warn("实时对话异常，转为定时回信:", e);
+          }
+        }
+        if (!realtimeOk) await appendDialog(token, note);
       }
       $("#ok").style.display = "block";
       loadRecent(); loadDialog();
@@ -358,6 +387,16 @@
     } catch (e) {
       box.innerHTML = '<div class="empty">对话读取失败：' + e.message + '</div>';
     }
+  }
+
+  // ---- 把一句话追加进「对话.md」（定时回信模式用）----
+  async function appendDialog(token, note){
+    try {
+      const df = await getFile(token, DIALOG_FILE);
+      const dh = "# 阿爪和麦麦炫的对话\n\n你在打卡网页留的话会到这里，阿爪定时回信。她记得住你们之前聊过的所有事。\n";
+      const base = (df.content && df.content.trim()) ? df.content.replace(/\n+$/, "") + "\n" : dh;
+      await putFile(token, DIALOG_FILE, base + `- [${stampNow()}] 麦麦炫：${note}\n`, df.sha);
+    } catch (e) { console.warn("写对话失败", e); }
   }
 
   // ---- 查看我的打卡记录（连续天数 + 最近7天日历 + 完成率）----
